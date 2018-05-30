@@ -28,6 +28,8 @@ ERASING = False
 SHAPE = 'circle'
 SIZE = 5
 
+CALIBRATION_MODE = False
+
 inv_transform = np.eye(3, dtype=np.float32)
 
 camera_img = np.zeros(monitorDim, np.uint16)
@@ -35,6 +37,29 @@ camera = camera_img.copy()
 
 dma = np.zeros(dmaDim[-1::-1], np.uint8)
 dma_temp = dma.copy()
+
+
+def calibration_pattern(nx=4, ny=4, s=SIZE):
+    global dmaDim
+    w, h = dmaDim
+    # Minimum spacing
+    # sx = int(w / (nx * s) - 2)
+    # sy = int(h / (ny * s) - 2)
+
+    # Maximum spacing
+    # sx = int(2 * s + (w - nx * 2 * s) / (nx - 1))
+    # sy = int(2 * s + (h - ny * 2 * s) / (ny - 1))
+
+    sx = int((w - nx * 2 * s) / (nx - 1) / 2)
+    sy = int((h - ny * 2 * s) / (ny - 1) / 2)
+
+    pattern = np.zeros(dmaDim[-1::-1])
+    for i in range(nx):
+        for j in range(ny):
+            cv2.circle(pattern,
+                       (i * sx + s, j * sy + s),
+                       s, (WHITE, WHITE, WHITE), -1)
+    return pattern
 
 
 def draw(event, x, y, flags, param):
@@ -103,7 +128,7 @@ def handlekey(key):
     """
     Apply action after keypress.
     """
-    global camera, camera_img, dma, inv_transform, SHAPE, SIZE
+    global camera, camera_img, dma, inv_transform, CALIBRATION_MODE, SHAPE, SIZE
     if key == 27:
         cv2.destroyAllWindows()
         return 1
@@ -149,6 +174,34 @@ def handlekey(key):
             inv_transform = loadtransform(filename)
     elif key == ord('h'):
         printdoc()
+    elif key == ord('C'):
+        CALIBRATION_MODE = True
+        dma = calibration_pattern()
+    if CALIBRATION_MODE:
+        CALIBRATION_STEP = 10
+        if key == ord('W'):
+            M = np.float32([[1, 0, 0],
+                            [0, 1, -CALIBRATION_STEP]])
+            dma = cv2.warpAffine(dma, M, dmaDim)
+            # dma = tf.warp(image=dma,
+            #               inverse_map=tf.EuclideanTransform(translation=(0, 1)).inverse,
+            #               output_shape=dma.shape)
+        elif key == ord('A'):
+            M = np.float32([[1, 0, -CALIBRATION_STEP],
+                            [0, 1, 0]])
+            dma = cv2.warpAffine(dma, M, dmaDim)
+        elif key == ord('S'):
+            M = np.float32([[1, 0, 0],
+                            [0, 1, CALIBRATION_STEP]])
+            dma = cv2.warpAffine(dma, M, dmaDim)
+        elif key == ord('D'):
+            M = np.float32([[1, 0, CALIBRATION_STEP],
+                            [0, 1, 0]])
+            dma = cv2.warpAffine(dma, M, dmaDim)
+        elif key == ord('=') or key == ord('-'):
+            dma = calibration_pattern(s=SIZE)
+        elif key == ord('\n') or key == ord('\r'):
+            CALIBRATION_MODE = False
     return 0
 
 
@@ -208,7 +261,7 @@ def main():
     cv2.setMouseCallback('camera', draw)
 
     while True:
-        key = cv2.waitKey(1) & 0xFF
+        key = cv2.waitKey(50) & 0xFF
         # ``handlekey`` returns 1 when program should quit.
         if handlekey(key):
             break
