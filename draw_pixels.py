@@ -7,20 +7,19 @@ column-separated file.
 """
 
 from __future__ import print_function
+import numpy as np
+from skimage import transform
 import cv2
 import filepicker
-import numpy as np
-import skimage.transform as tf
-
 
 # Constants
 WHITE = 65535
 BLACK = 0
 
 # Hardware constants
-dmaDim = (1200, 800)
-monitorDim = (512, 512)
-cameraDim = (256, 256)
+DMA_DIM = (1200, 800)
+MONITOR_DIM = (512, 512)
+CAMERA_DIM = (256, 256)
 
 # Initial parameters
 DRAWING = False
@@ -30,18 +29,22 @@ SIZE = 5
 
 CALIBRATION_MODE = False
 
-inv_transform = np.eye(3, dtype=np.float32)
+INV_TRANSFORM = np.eye(3, dtype=np.float32)
 
-camera_img = np.zeros(monitorDim, np.uint16)
-camera = camera_img.copy()
+CAMERA_IMG = np.zeros(MONITOR_DIM, np.uint16)
+CAMERA = CAMERA_IMG.copy()
 
-dma = np.zeros(dmaDim[-1::-1], np.uint8)
-dma_temp = dma.copy()
+DMA = np.zeros(DMA_DIM[-1::-1], np.uint8)
+DMA_TEMP = DMA.copy()
+
+MAP1 = np.zeros(DMA.shape, dtype='float32')
+MAP2 = np.zeros(DMA.shape, dtype='float32')
 
 
-def calibration_pattern(nx=4, ny=4, s=SIZE):
-    global dmaDim
-    w, h = dmaDim
+def calibration_pattern(nx=4, ny=4, screen_fraction=0.4):
+    global DMA_DIM, SIZE
+    width, height = DMA_DIM
+
     # Minimum spacing
     # sx = int(w / (nx * s) - 2)
     # sy = int(h / (ny * s) - 2)
@@ -50,15 +53,21 @@ def calibration_pattern(nx=4, ny=4, s=SIZE):
     # sx = int(2 * s + (w - nx * 2 * s) / (nx - 1))
     # sy = int(2 * s + (h - ny * 2 * s) / (ny - 1))
 
-    sx = int((w - nx * 2 * s) / (nx - 1) / 2)
-    sy = int((h - ny * 2 * s) / (ny - 1) / 2)
+    # Constant spacing
+    # s_xx = int(screen_fraction * width / (nx - 1))
+    s_y = int(screen_fraction * height / (ny - 1))
 
-    pattern = np.zeros(dmaDim[-1::-1])
+    # sx = int((screen_fraction * w - nx * 2 * s) / (nx - 1))
+    # sy = int((screen_fraction * h - ny * 2 * s) / (ny - 1))
+
+    pattern = np.zeros(DMA_DIM[-1::-1])
     for i in range(nx):
         for j in range(ny):
-            cv2.circle(pattern,
-                       (i * sx + s, j * sy + s),
-                       s, (WHITE, WHITE, WHITE), -1)
+            if SIZE != 0:
+                cv2.circle(pattern, (i * s_y + SIZE, j * s_y + SIZE), SIZE,
+                           (WHITE, WHITE, WHITE), -1)
+            else:
+                pattern[j * s_y + SIZE, i * s_y + SIZE] = WHITE
     return pattern
 
 
@@ -67,7 +76,7 @@ def draw(event, x, y, flags, param):
     Mouse callback function. Handles events for drawing (left-click)
     and erasing (right-click).
     """
-    global DRAWING, ERASING, SHAPE, SIZE, camera
+    global CAMERA, DRAWING, ERASING, SIZE, SHAPE
 
     if event == cv2.EVENT_LBUTTONDOWN:
         DRAWING = True
@@ -78,30 +87,22 @@ def draw(event, x, y, flags, param):
        (cv2.EVENT_LBUTTONDOWN or cv2.EVENT_RBUTTONDOWN):
         if DRAWING:
             if SHAPE == 'circle':
-                cv2.circle(camera, (x, y), SIZE, (WHITE, WHITE, WHITE), -1)
-                cv2.circle(camera_img, (x, y), SIZE, (WHITE, WHITE, WHITE), -1)
+                cv2.circle(CAMERA, (x, y), SIZE, (WHITE, WHITE, WHITE), -1)
+                cv2.circle(CAMERA_IMG, (x, y), SIZE, (WHITE, WHITE, WHITE), -1)
             if SHAPE == 'rect':
-                cv2.rectangle(camera,
-                              (x-SIZE, y-SIZE),
-                              (x+SIZE, y+SIZE),
-                              (WHITE, WHITE, WHITE), -1)
-                cv2.rectangle(camera_img,
-                              (x-SIZE, y-SIZE),
-                              (x+SIZE, y+SIZE),
-                              (WHITE, WHITE, WHITE), -1)
+                cv2.rectangle(CAMERA, (x - SIZE, y - SIZE),
+                              (x + SIZE, y + SIZE), (WHITE, WHITE, WHITE), -1)
+                cv2.rectangle(CAMERA_IMG, (x - SIZE, y - SIZE),
+                              (x + SIZE, y + SIZE), (WHITE, WHITE, WHITE), -1)
         if ERASING:
             if SHAPE == 'circle':
-                cv2.circle(camera, (x, y), SIZE, (BLACK, BLACK, BLACK), -1)
-                cv2.circle(camera_img, (x, y), SIZE, (BLACK, BLACK, BLACK), -1)
+                cv2.circle(CAMERA, (x, y), SIZE, (BLACK, BLACK, BLACK), -1)
+                cv2.circle(CAMERA_IMG, (x, y), SIZE, (BLACK, BLACK, BLACK), -1)
             if SHAPE == 'rect':
-                cv2.rectangle(camera,
-                              (x-SIZE, y-SIZE),
-                              (x+SIZE, y+SIZE),
-                              (BLACK, BLACK, BLACK), -1)
-                cv2.rectangle(camera_img,
-                              (x-SIZE, y-SIZE),
-                              (x+SIZE, y+SIZE),
-                              (BLACK, BLACK, BLACK), -1)
+                cv2.rectangle(CAMERA, (x - SIZE, y - SIZE),
+                              (x + SIZE, y + SIZE), (BLACK, BLACK, BLACK), -1)
+                cv2.rectangle(CAMERA_IMG, (x - SIZE, y - SIZE),
+                              (x + SIZE, y + SIZE), (BLACK, BLACK, BLACK), -1)
 
     if event == cv2.EVENT_LBUTTONUP:
         DRAWING = False
@@ -119,87 +120,86 @@ def loadtransform(filename):
     """
     params = np.loadtxt(filename, delimiter=',', dtype=np.float32)
     if len(params) == 2:
-        return tf.PolynomialTransform(params)
+        return transform.PolynomialTransform(params)
     else:
-        return tf.ProjectiveTransform(params)
+        return transform.ProjectiveTransform(params)
 
 
 def handlekey(key):
     """
     Apply action after keypress.
     """
-    global camera, camera_img, dma, inv_transform, CALIBRATION_MODE, SHAPE, SIZE
+    global CALIBRATION_MODE, CAMERA, CAMERA_IMG, DMA, INV_TRANSFORM, \
+        MAP1, MAP2, SIZE, SHAPE
     if key == 27:
         cv2.destroyAllWindows()
         return 1
     # Clear the screen with the BACKSPACE key
     elif key == 8:
-        camera[:] = 0
-        dma[:] = 0
-    # Send image from camera to dma with the ENTER key. The keycode
+        CAMERA[:] = 0
+        DMA[:] = 0
+    # Send image from CAMERA to DMA with the ENTER key. The keycode
     # for return will depend on the platform, so \n and \r are both
     # handled.
     elif key == ord('\n') or key == ord('\r'):
-        dma = tf.warp(image=camera,
-                      inverse_map=inv_transform,
-                      output_shape=dmaDim[-1::-1],
-                      order=0)
-        # dma = tf.warp(image=cv2.resize(camera, cameraDim),
-        #               inverse_map=inv_transform,
-        #               output_shape=dmaDim[-1::-1],
+        import time
+        t0 = time.time()
+        DMA = cv2.remap(CAMERA, MAP1, MAP2, cv2.INTER_CUBIC)
+        # DMA = transform.warp(image=CAMERA,
+        #               inverse_map=INV_TRANSFORM,
+        #               output_shape=DMA_DIM[-1::-1],
+        #               order=1)
+        print(time.time() - t0)
+        # DMA = transform.warp(image=cv2.resize(CAMERA, CAMERA_DIM),
+        #               inverse_map=INV_TRANSFORM,
+        #               output_shape=DMA_DIM[-1::-1],
         #               order=0)
     elif key == ord('f'):
-        cv2.setWindowProperty('dma', cv2.WND_PROP_FULLSCREEN, 1)
+        cv2.setWindowProperty('DMA', cv2.WND_PROP_FULLSCREEN, 1)
     elif key == ord('F'):
-        cv2.setWindowProperty('dma', cv2.WND_PROP_FULLSCREEN, 0)
+        cv2.setWindowProperty('DMA', cv2.WND_PROP_FULLSCREEN, 0)
     elif key == ord('r'):
         SHAPE = 'rect'
     elif key == ord('c'):
         SHAPE = 'circle'
     elif key == ord('s'):
-        print('size = {}'.format(SIZE))
+        print('diameter = {} px'.format(2 * SIZE + 1))
     elif key == ord('='):
-        SIZE += 2
+        SIZE += 1
     elif key == ord('-'):
-        SIZE -= 2
-        if SIZE <= 1:
-            SIZE = 1
+        SIZE -= 1
+        if SIZE <= 0:
+            SIZE = 0
     elif key == ord('@'):
-        dma[:] = WHITE
+        DMA[:] = WHITE
     elif key == ord('!'):
-        dma[:] = BLACK
+        DMA[:] = BLACK
     elif key == ord('o'):
         filename = filepicker.filepicker()
         if filename != '':
-            inv_transform = loadtransform(filename)
+            INV_TRANSFORM = loadtransform(filename)
+            MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params)
     elif key == ord('h'):
         printdoc()
     elif key == ord('C'):
         CALIBRATION_MODE = True
-        dma = calibration_pattern()
+        DMA = calibration_pattern()
     if CALIBRATION_MODE:
         CALIBRATION_STEP = 10
         if key == ord('W'):
-            M = np.float32([[1, 0, 0],
-                            [0, 1, -CALIBRATION_STEP]])
-            dma = cv2.warpAffine(dma, M, dmaDim)
-            # dma = tf.warp(image=dma,
-            #               inverse_map=tf.EuclideanTransform(translation=(0, 1)).inverse,
-            #               output_shape=dma.shape)
+            M = np.float32([[1, 0, 0], [0, 1, -CALIBRATION_STEP]])
+            DMA = cv2.warpAffine(DMA, M, DMA_DIM)
         elif key == ord('A'):
-            M = np.float32([[1, 0, -CALIBRATION_STEP],
-                            [0, 1, 0]])
-            dma = cv2.warpAffine(dma, M, dmaDim)
+            M = np.float32([[1, 0, -CALIBRATION_STEP], [0, 1, 0]])
+            DMA = cv2.warpAffine(DMA, M, DMA_DIM)
         elif key == ord('S'):
-            M = np.float32([[1, 0, 0],
-                            [0, 1, CALIBRATION_STEP]])
-            dma = cv2.warpAffine(dma, M, dmaDim)
+            M = np.float32([[1, 0, 0], [0, 1, CALIBRATION_STEP]])
+            DMA = cv2.warpAffine(DMA, M, DMA_DIM)
         elif key == ord('D'):
-            M = np.float32([[1, 0, CALIBRATION_STEP],
-                            [0, 1, 0]])
-            dma = cv2.warpAffine(dma, M, dmaDim)
+            M = np.float32([[1, 0, CALIBRATION_STEP], [0, 1, 0]])
+            DMA = cv2.warpAffine(DMA, M, DMA_DIM)
         elif key == ord('=') or key == ord('-'):
-            dma = calibration_pattern(s=SIZE)
+            DMA = calibration_pattern(nx=10, ny=10)
         elif key == ord('\n') or key == ord('\r'):
             CALIBRATION_MODE = False
     return 0
@@ -211,12 +211,12 @@ def printdoc():
     """
     doc = {
         'BACKSPACE': 'Clear all screens',
-        'f/F': 'Fullscreen/restore the dma window size',
+        'f/F': 'Fullscreen/restore the DMA window size',
         'ENTER': 'Send image to DMA',
         'c/r': 'Set brush shape to circle/rectangle (default is circle)',
         's': 'Print size of brush',
         '=/-': 'Increase/decrease brush size',
-        '!/@': 'Set dma to black/white',
+        '!/@': 'Set DMA to black/white',
         'o': 'Open new transformation file',
         'h': 'Show this help dialog',
         'left-click/right-click': 'Draw/erase with brush.'
@@ -231,60 +231,80 @@ def printdoc():
 
 
 def _generate_maps(tform):
-    global cameraDim, dmaDim
+    global CAMERA_DIM, DMA_DIM, MAP1, MAP2
     # src, dst, tform = _warp_test()
-    x, y = np.meshgrid(np.arange(dmaDim[0]), np.arange(dmaDim[1]))
+    x, y = np.meshgrid(np.arange(DMA_DIM[0]), np.arange(DMA_DIM[1]))
     on = np.ones(x.shape, dtype=x.dtype)
-    powers = np.stack((on, x, y, x**2, x*y, y**2, x**3, x**2*y, x*y**2, y**3))
-    mapx = np.zeros(dmaDim[-1::-1], dtype='float32')
-    mapy = np.zeros(dmaDim[-1::-1], dtype='float32')
+    powers = np.stack((on, x, y, x**2, x * y, y**2, x**3,
+                       x**2 * y, x * y**2, y**3))
+    mapx = np.zeros(DMA_DIM[-1::-1], dtype='float32')
+    mapy = np.zeros(DMA_DIM[-1::-1], dtype='float32')
     for i in range(10):
         mapx += tform[0, i] * powers[i]
         mapy += tform[1, i] * powers[i]
-    map1, map2 = cv2.convertMaps(map1=mapx,
-                                 map2=mapy,
-                                 dstmap1type=cv2.CV_16SC2,
-                                 nninterpolation=False)
-    return map1, map2
+    MAP1, MAP2 = cv2.convertMaps(
+        map1=mapx, map2=mapy, dstmap1type=cv2.CV_16SC2, nninterpolation=False)
+    return MAP1, MAP2
+
+
+def _warp_test():
+    src = np.array([[351., 135.], [511., 135.], [671., 135.], [831., 135.],
+                    [351., 231.], [511., 231.], [671., 231.], [831., 231.],
+                    [351., 327.], [511., 327.], [671., 327.], [831., 327.],
+                    [351., 424.], [511., 424.], [671., 424.], [831., 424.]])
+
+    dst = np.array([[440., 449.], [319., 457.], [199., 465.], [79., 473.],
+                    [437., 311.], [317., 322.], [196., 330.], [75., 341.],
+                    [435., 173.], [314., 184.], [192., 194.], [71., 203.],
+                    [430., 39.], [310., 46.], [189., 53.], [68., 63.]])
+
+    tform = np.array([[
+        7.00374748e+02, -7.30131577e-01, 1.53052776e-02, -3.04479066e-05,
+        -5.03457332e-05, -8.34824240e-05, 2.43427833e-08, -5.38033585e-08,
+        1.82036704e-07, -5.14826599e-08
+    ], [
+        6.13218816e+02, 1.17450369e-01, -1.46495340e+00, -1.69348298e-04,
+        2.86958525e-04, -1.49289015e-04, 8.61463811e-08, 6.86296386e-08,
+        -6.59559586e-07, 5.84696922e-07
+    ]])
+
+    return src, dst, tform
 
 
 def main():
     import argparse
     import sys
 
-    global cameraDim, dmaDim, dma_temp, inv_transform, monitorDim 
+    global CAMERA_DIM, DMA_DIM, DMA_TEMP, INV_TRANSFORM, MAP1, MAP2, \
+        MONITOR_DIM
 
     parser = argparse.ArgumentParser(description='Process stuff.')
-    parser.add_argument('--file',
-                        metavar='inverseTransformFile',
-                        type=str,
-                        default='')
+    parser.add_argument(
+        '--file', metavar='inverseTransformFile', type=str, default='')
 
     args, _ = parser.parse_known_args()
-    if args.file != '':
-        inv_transform = loadtransform(args.file)
+    if args.file:
+        INV_TRANSFORM = loadtransform(args.file)
+        MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params)
     else:
-        print('No transformation file specified, using identity.',
-              file=sys.stderr)
+        INV_TRANSFORM = loadtransform(
+            '/home/angel/research/20180516/scripts/tform.csv')
+        MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params)
+        print(
+            'No transformation file specified, using identity.',
+            file=sys.stderr)
 
-    # # Create a black image, a window and bind the function to window
-    # camera_img = np.zeros(monitorDim, np.uint16)
-    # camera = camera_img.copy()
-
-    # dma = np.zeros(dmaDim[-1::-1], np.uint8)
-    # dma_temp = dma.copy()
-
-    cv2.namedWindow('dma', cv2.WINDOW_NORMAL)
-    cv2.namedWindow('camera', cv2.WINDOW_AUTOSIZE)
-    cv2.setMouseCallback('camera', draw)
+    cv2.namedWindow('DMA', cv2.WINDOW_NORMAL)
+    cv2.namedWindow('CAMERA', cv2.WINDOW_AUTOSIZE)
+    cv2.setMouseCallback('CAMERA', draw)
 
     while True:
         key = cv2.waitKey(50) & 0xFF
         # ``handlekey`` returns 1 when program should quit.
         if handlekey(key):
             break
-        cv2.imshow('camera', camera)
-        cv2.imshow('dma', dma)
+        cv2.imshow('CAMERA', CAMERA)
+        cv2.imshow('DMA', DMA)
 
 
 if __name__ == '__main__':
