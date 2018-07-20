@@ -287,9 +287,11 @@ def main():
         INV_TRANSFORM = loadtransform(args.file)
         MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params)
     else:
-        INV_TRANSFORM = loadtransform(
-            '/home/angel/research/20180516/scripts/tform.csv')
-        MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params)
+        # INV_TRANSFORM = loadtransform(
+        #     '/home/angel/research/20180516/scripts/tform.csv')
+        INV_TRANSFORM = np.array([[1,0,0,0,0,0,0,0,0,0],
+                                  [1,0,0,0,0,0,0,0,0,0]])
+        MAP1, MAP2 = _generate_maps(INV_TRANSFORM)
         print(
             'No transformation file specified, using identity.',
             file=sys.stderr)

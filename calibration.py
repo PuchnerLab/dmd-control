@@ -9,6 +9,7 @@ and finds the transformation matrix. Calibration images consist of four circles,
 with the centers being found through blob detection.
 """
 
+from __future__ import division, print_function
 import sys
 from argparse import ArgumentParser
 from skimage import feature, filters, io, measure, morphology, transform
@@ -38,7 +39,7 @@ def detect_points(img, scale=1):
     .. [1] https://en.wikipedia.org/wiki/Blob_detection#The_Laplacian_of_Gaussian
     .. [2] https://github.com/spacetx/starfish/blob/master/starfish/pipeline/filter/white_tophat.py
     """
-    from .starfish.filters import white_top_hat
+    from starfish.filters import white_top_hat
 
     min_sigma = scale * 5
     img_top_hat = white_top_hat(img.astype('float64'), min_sigma)
@@ -87,7 +88,7 @@ def fit_gaussian(img, blobs):
     ----------
     .. [1] https://github.com/ZhuangLab/storm-analysis/blob/master/storm_analysis/sa_library/gaussfit.py
     """
-    from .storm_analysis.sa_library.gaussfit import fitEllipticalGaussian
+    from storm_analysis.sa_library.gaussfit import fitEllipticalGaussian
     gaussians = np.zeros((blobs.shape[0], 5), dtype=blobs.dtype)
     for b, _ in enumerate(blobs):
         radius = 2 * blobs[b, 2]
@@ -324,6 +325,8 @@ if __name__ == '__main__':
         '-ob',
         markersize=3,
         linewidth=1)
+    ax[0, 0].set_xlabel('x (px)')
+    ax[0, 0].set_ylabel('y (px)')
 
     ax[0, 1].imshow(screen, cmap=plt.cm.gray)
     ax[0, 1].plot(
@@ -332,6 +335,8 @@ if __name__ == '__main__':
         '-or',
         markersize=3,
         linewidth=1)
+    ax[0, 1].set_xlabel('x (px)')
+    ax[0, 1].set_ylabel('y (px)')
 
     ax[1, 0].imshow(screen_tform, cmap=plt.cm.gray)
     ax[1, 0].plot(
@@ -340,6 +345,8 @@ if __name__ == '__main__':
         '-or',
         markersize=3,
         linewidth=1)
+    ax[1, 0].set_xlabel('x (px)')
+    ax[1, 0].set_ylabel('y (px)')
 
     def vec_length(array):
         return np.sqrt(np.sum(array**2, 1))
@@ -347,7 +354,9 @@ if __name__ == '__main__':
     distance = vec_length(sample_coords_sorted[:, :2] -
                           tform(screen_coords_sorted[:, :2]))
     ax[1, 1].plot(
-        distance, label='{} +/- {}'.format(distance.mean(), distance.std()))
+        distance, label='{:0.4f} +/- {:0.4f} nm'.format(160 * distance.mean() / 2, 160 * distance.std() / 2))
+    ax[1, 1].set_xlabel('point')
+    ax[1, 1].set_ylabel('discrepancy (nm)')
     ax[1, 1].legend()
     fig.tight_layout()
     plt.show()
