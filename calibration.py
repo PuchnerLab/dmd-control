@@ -350,29 +350,4 @@ if __name__ == '__main__':
         distance, label='{} +/- {}'.format(distance.mean(), distance.std()))
     ax[1, 1].legend()
     fig.tight_layout()
-
-    # plt.figure()
-    # plt.imshow(filters.threshold_yen())
-    # plt.imshow(1.0 * (unsharp_mask(sample) >= filters.threshold_yen(unsharp_mask(sample))))
-
-    # ax[1, 1].imshow(sample_tform, cmap=plt.cm.gray)
-    # ax[1, 1].plot(tform.inverse(sample_coords_sorted)[:, 0],
-    #               tform.inverse(sample_coords_sorted)[:, 1], '-or')
-
-    # image_product = np.fft.fft2(screen_tform) * np.fft.fft2(sample).conj()
-    # cc_image = np.fft.fftshift(np.fft.ifft2(image_product))
-    # ax[1, 0].imshow(cc_image.real)
-
-    # io.imshow(sample, alpha=0.5, cmap='gray')
-    # io.imshow(screen_tform, alpha=0.5, cmap='gray')
-
-    # # print(screen_coords_sorted)
-    # # print(sample_coords_sorted)
-    # # print(tform(screen_coords_sorted))
-
-    # plt.plot(*zip(*tform(screen_coords_sorted)), marker='x', markersize=20)
-    # plt.plot(*zip(*sample_coords_sorted))
-
-    # # plt.plot(*zip(*opt_sample), marker='x', markersize=20)
-    # # plt.plot(*zip(*opt_src))
     plt.show()
