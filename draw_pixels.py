@@ -6,7 +6,7 @@ distortion, a transformation matrix can be provided as a
 column-separated file.
 """
 
-from __future__ import print_function
+from __future__ import division, print_function
 import numpy as np
 from skimage import transform
 import cv2
@@ -145,15 +145,6 @@ def handlekey(key):
         import time
         t0 = time.time()
         DMA = cv2.remap(CAMERA, MAP1, MAP2, cv2.INTER_CUBIC)
-        # DMA = transform.warp(image=CAMERA,
-        #               inverse_map=INV_TRANSFORM,
-        #               output_shape=DMA_DIM[-1::-1],
-        #               order=1)
-        print(time.time() - t0)
-        # DMA = transform.warp(image=cv2.resize(CAMERA, CAMERA_DIM),
-        #               inverse_map=INV_TRANSFORM,
-        #               output_shape=DMA_DIM[-1::-1],
-        #               order=0)
     elif key == ord('f'):
         cv2.setWindowProperty('DMA', cv2.WND_PROP_FULLSCREEN, 1)
     elif key == ord('F'):
@@ -287,10 +278,9 @@ def main():
         INV_TRANSFORM = loadtransform(args.file)
         MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params)
     else:
-        # INV_TRANSFORM = loadtransform(
-        #     '/home/angel/research/20180516/scripts/tform.csv')
-        INV_TRANSFORM = np.array([[1,0,0,0,0,0,0,0,0,0],
-                                  [1,0,0,0,0,0,0,0,0,0]])
+        INV_TRANSFORM = np.array([[0,1,0,0,0,0,0,0,0,0],
+                                  [0,0,1,0,0,0,0,0,0,0]],
+                                  dtype='float64')
         MAP1, MAP2 = _generate_maps(INV_TRANSFORM)
         print(
             'No transformation file specified, using identity.',
