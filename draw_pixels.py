@@ -40,6 +40,8 @@ DMA_TEMP = DMA.copy()
 MAP1 = np.zeros(DMA.shape, dtype='float32')
 MAP2 = np.zeros(DMA.shape, dtype='float32')
 
+MODE = '(BLACK)'
+
 
 def calibration_pattern(nx=4, ny=4, screen_fraction=0.4):
     global DMA_DIM, SIZE
@@ -54,7 +56,7 @@ def calibration_pattern(nx=4, ny=4, screen_fraction=0.4):
     # sy = int(2 * s + (h - ny * 2 * s) / (ny - 1))
 
     # Constant spacing
-    # s_xx = int(screen_fraction * width / (nx - 1))
+    # s_x = int(screen_fraction * width / (nx - 1))
     s_y = int(screen_fraction * height / (ny - 1))
 
     # sx = int((screen_fraction * w - nx * 2 * s) / (nx - 1))
@@ -130,7 +132,7 @@ def handlekey(key):
     Apply action after keypress.
     """
     global CALIBRATION_MODE, CAMERA, CAMERA_IMG, DMA, INV_TRANSFORM, \
-        MAP1, MAP2, SIZE, SHAPE
+        MAP1, MAP2, MODE, SIZE, SHAPE
     if key == 27:
         cv2.destroyAllWindows()
         return 1
@@ -145,6 +147,7 @@ def handlekey(key):
         import time
         t0 = time.time()
         DMA = cv2.remap(CAMERA, MAP1, MAP2, cv2.INTER_CUBIC)
+        MODE = '(SENT)'
     elif key == ord('f'):
         cv2.setWindowProperty('DMA', cv2.WND_PROP_FULLSCREEN, 1)
     elif key == ord('F'):
@@ -163,8 +166,10 @@ def handlekey(key):
             SIZE = 0
     elif key == ord('@'):
         DMA[:] = WHITE
+        MODE = '(WHITE)'
     elif key == ord('!'):
         DMA[:] = BLACK
+        MODE = '(BLACK)'
     elif key == ord('o'):
         filename = filepicker.filepicker()
         if filename != '':
@@ -175,6 +180,7 @@ def handlekey(key):
     elif key == ord('C'):
         CALIBRATION_MODE = True
         DMA = calibration_pattern()
+        MODE = '(CALIBRATION)'
     if CALIBRATION_MODE:
         CALIBRATION_STEP = 10
         if key == ord('W'):
@@ -190,9 +196,10 @@ def handlekey(key):
             M = np.float32([[1, 0, CALIBRATION_STEP], [0, 1, 0]])
             DMA = cv2.warpAffine(DMA, M, DMA_DIM)
         elif key == ord('=') or key == ord('-'):
-            DMA = calibration_pattern(nx=10, ny=10)
+            DMA = calibration_pattern()
         elif key == ord('\n') or key == ord('\r'):
             CALIBRATION_MODE = False
+            MODE = ''
     return 0
 
 
@@ -296,6 +303,7 @@ def main():
         if handlekey(key):
             break
         cv2.imshow('CAMERA', CAMERA)
+        cv2.setWindowTitle('CAMERA', 'CAMERA ' + MODE)
         cv2.imshow('DMA', DMA)
 
 
