@@ -10,13 +10,16 @@ with the centers being found through blob detection.
 """
 
 from __future__ import division, print_function
+
 import sys
 from argparse import ArgumentParser
-from skimage import feature, filters, io, measure, morphology, transform
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import numpy as np
 
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
+from skimage import feature, io, measure, morphology, transform
+
+import cv2
 
 def detect_points(img, scale=1):
     """Detects blobs in an image using the Laplacian of the Gaussian[1] blob detection from ``skimage``. This function leverages the white_top_hat function from the ``starfish`` library by the Chan Zuckerberg Initiative[2].
