@@ -21,50 +21,36 @@ from skimage import feature, io, measure, morphology, transform
 
 import cv2
 
+
 def detect_points(img, scale=1):
-    """Detects blobs in an image using the Laplacian of the Gaussian[1] blob detection from ``skimage``. This function leverages the white_top_hat function from the ``starfish`` library by the Chan Zuckerberg Initiative[2].
+    img_copy = (img * ((2**8 - 1) / img.max()))[:].astype('uint8')
 
-    Parameters
-    ----------
-    img : ndarray
-        Image containing the light blobs to be detected.
+    params = cv2.SimpleBlobDetector_Params()
 
-    scale : scalar, optional
-        If the image has been rescaled then this parameter can be passed to ensure that the spot detection kernel can approximately match the blob size
+    params.thresholdStep = 1
+    params.minThreshold = 100
+    params.maxThreshold = 255
 
-    Returns
-    -------
-    out : ndarray
-        Array of blobs of the form [x, y, size]
+    params.filterByColor = False
 
-    References
-    ----------
-    .. [1] https://en.wikipedia.org/wiki/Blob_detection#The_Laplacian_of_Gaussian
-    .. [2] https://github.com/spacetx/starfish/blob/master/starfish/pipeline/filter/white_tophat.py
-    """
-    from starfish.filters import white_top_hat
+    params.filterByArea = True
+    params.minArea = 30
+    params.maxArea = 1000
 
-    min_sigma = scale * 5
-    img_top_hat = white_top_hat(img.astype('float64'), min_sigma)
-    while not img_top_hat.mean():
-        min_sigma += scale * 5
-        img_top_hat = white_top_hat(img.astype('float64'), min_sigma)
+    params.filterByCircularity = True
+    params.minCircularity = 0.5
+    params.maxCircularity = 1.0
 
-    max_sigma = scale * 30
-    num_sigma = (max_sigma - min_sigma) // scale
+    params.filterByInertia = False
 
-    threshold = filters.threshold_yen(img_top_hat)
+    params.filterByConvexity = False
 
-    blobs = feature.blob.blob_log(
-        img_top_hat,
-        min_sigma=min_sigma,
-        max_sigma=max_sigma,
-        num_sigma=num_sigma,
-        threshold=threshold)
-
-    # transpose x and y because of difference in convention: (row, col) vs (x, y)
-    blobs[:, :2] = blobs[:, 1::-1]
-    return blobs
+    detector = cv2.SimpleBlobDetector_create(params)
+    keypoints = detector.detect(img_copy)
+    # img_with_keypoints = cv2.drawKeypoints(img_copy, keypoints, np.array([]),
+    #                                        (255,0,0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    return np.array([list(k.pt) + [k.size] for k in keypoints])
+    # return img_with_keypoints
 
 
 def fit_gaussian(img, blobs):
