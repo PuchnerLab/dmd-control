@@ -43,7 +43,7 @@ MAP2 = np.zeros(DMA.shape, dtype='float32')
 MODE = '(BLACK)'
 
 
-def calibration_pattern(nx=4, ny=4, screen_fraction=0.4):
+def calibration_pattern(nx=4, ny=4, screen_fraction=0.3):
     global DMA_DIM, SIZE
     width, height = DMA_DIM
 
@@ -67,7 +67,7 @@ def calibration_pattern(nx=4, ny=4, screen_fraction=0.4):
         for j in range(ny):
             if SIZE != 0:
                 cv2.circle(pattern, (i * s_y + SIZE, j * s_y + SIZE), SIZE,
-                           (WHITE, WHITE, WHITE), -1)
+                           (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
             else:
                 pattern[j * s_y + SIZE, i * s_y + SIZE] = WHITE
     return pattern
@@ -89,22 +89,22 @@ def draw(event, x, y, flags, param):
        (cv2.EVENT_LBUTTONDOWN or cv2.EVENT_RBUTTONDOWN):
         if DRAWING:
             if SHAPE == 'circle':
-                cv2.circle(CAMERA, (x, y), SIZE, (WHITE, WHITE, WHITE), -1)
-                cv2.circle(CAMERA_IMG, (x, y), SIZE, (WHITE, WHITE, WHITE), -1)
+                cv2.circle(CAMERA, (x, y), SIZE, (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
+                cv2.circle(CAMERA_IMG, (x, y), SIZE, (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
             if SHAPE == 'rect':
                 cv2.rectangle(CAMERA, (x - SIZE, y - SIZE),
-                              (x + SIZE, y + SIZE), (WHITE, WHITE, WHITE), -1)
+                              (x + SIZE, y + SIZE), (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
                 cv2.rectangle(CAMERA_IMG, (x - SIZE, y - SIZE),
-                              (x + SIZE, y + SIZE), (WHITE, WHITE, WHITE), -1)
+                              (x + SIZE, y + SIZE), (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
         if ERASING:
             if SHAPE == 'circle':
-                cv2.circle(CAMERA, (x, y), SIZE, (BLACK, BLACK, BLACK), -1)
-                cv2.circle(CAMERA_IMG, (x, y), SIZE, (BLACK, BLACK, BLACK), -1)
+                cv2.circle(CAMERA, (x, y), SIZE, (BLACK, BLACK, BLACK), -1, lineType=cv2.LINE_AA)
+                cv2.circle(CAMERA_IMG, (x, y), SIZE, (BLACK, BLACK, BLACK), -1, lineType=cv2.LINE_AA)
             if SHAPE == 'rect':
                 cv2.rectangle(CAMERA, (x - SIZE, y - SIZE),
-                              (x + SIZE, y + SIZE), (BLACK, BLACK, BLACK), -1)
+                              (x + SIZE, y + SIZE), (BLACK, BLACK, BLACK), -1, lineType=cv2.LINE_AA)
                 cv2.rectangle(CAMERA_IMG, (x - SIZE, y - SIZE),
-                              (x + SIZE, y + SIZE), (BLACK, BLACK, BLACK), -1)
+                              (x + SIZE, y + SIZE), (BLACK, BLACK, BLACK), -1, lineType=cv2.LINE_AA)
 
     if event == cv2.EVENT_LBUTTONUP:
         DRAWING = False
@@ -232,8 +232,9 @@ def _generate_maps(tform):
     global CAMERA_DIM, DMA_DIM, MAP1, MAP2
     # src, dst, tform = _warp_test()
     x, y = np.meshgrid(np.arange(DMA_DIM[0]), np.arange(DMA_DIM[1]))
-    on = np.ones(x.shape, dtype=x.dtype)
-    powers = np.stack((on, x, y, x**2, x * y, y**2, x**3,
+    one = np.ones(x.shape, dtype=x.dtype)
+    # [(m-n, n) for m in range(4) for n in range(m+1)]
+    powers = np.stack((one, x, y, x**2, x * y, y**2, x**3,
                        x**2 * y, x * y**2, y**3))
     mapx = np.zeros(DMA_DIM[-1::-1], dtype='float32')
     mapy = np.zeros(DMA_DIM[-1::-1], dtype='float32')
@@ -285,9 +286,9 @@ def main():
         INV_TRANSFORM = loadtransform(args.file)
         MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params)
     else:
-        INV_TRANSFORM = np.array([[0,1,0,0,0,0,0,0,0,0],
-                                  [0,0,1,0,0,0,0,0,0,0]],
-                                  dtype='float64')
+        INV_TRANSFORM = np.array([[0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                                  [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]],
+                                 dtype='float64')
         MAP1, MAP2 = _generate_maps(INV_TRANSFORM)
         print(
             'No transformation file specified, using identity.',
