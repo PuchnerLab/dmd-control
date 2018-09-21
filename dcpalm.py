@@ -3,14 +3,18 @@ from __future__ import division, print_function
 
 import argparse
 import json
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-import pandas as pd
-import numpy as np
 import re
-import yaml
 
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import yaml
 from matplotlib.path import Path
+from matplotlib_scalebar.scalebar import ScaleBar
+from skimage import io
+from storm_analysis.sa_utilities.bin_to_image import (readinsight3,
+                                                      render2DImage)
 
 
 def make_path(roi_json):
@@ -49,20 +53,47 @@ def estimate_roi_path_area(roi_path, size=(256, 256)):
 def count_mol_in_roi(mol_list, roi_path):
     return roi_path.contains_points(mol_list[['x', 'y']]).sum()
 
-def plot_mol_list(mol_list, **kwargs):
+
+def plot_mol_list(mol_list_file, **kwargs):
+    scale = 1
+
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111)
+
+    data = readinsight3.I3Reader(mol_list_file)
+    img = render2DImage(data, shape=(256, 256), scale=scale, sigma=0.5).T
+    img_winsorized = img  # winsorize(img, (0.0, 0.005))
+
+    heatmap = io.imshow(
+        img_winsorized,
+        interpolation='gaussian',
+        cmap='inferno',
+        vmax=np.percentile(img_winsorized, 99.5),
+        ax=ax,
+        **kwargs)
+    heatmap.colorbar.set_label('intensity (a.u.)')
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title('frames = {}'.format(data.frames))
+
+    scalebar = ScaleBar(
+        160e-9 / scale,  # 1 pixel = 160 nm / scale
+        frameon=False,
+        color='white',
+        location='lower right')
+    ax.add_artist(scalebar)
 
     # title_string += '{r}: N = {n}   A = {a}\n'.format(
     #     r=r, n=mol_list.shape[0], a=area)
 
-    ax.scatter(
-        mol_list['x'],
-        mol_list['y'],
-        c=set_alpha(mol_list['h']), # , color),
-        s=10 * mol_list['w'] / mol_list['w'].max(),
-        edgecolor='none',
-        **kwargs)
+    # ax.scatter(
+    #     mol_list['x'],
+    #     mol_list['y'],
+    #     c=set_alpha(mol_list['h']), # , color),
+    #     s=10 * mol_list['w'] / mol_list['w'].max(),
+    #     edgecolor='none',
+    #     **kwargs)
+
     # plt.hist2d(mol_list['x'], mol_list['y'],
     #            bins=path.vertices.max(axis=0)-path.vertices.min(axis=0))
     # plt.plot(roi['x'], roi['y'], c=color)  # , label=r
@@ -84,7 +115,7 @@ def set_alpha(arr, color=mpl.colors.TABLEAU_COLORS['tab:blue']):
 
 def set_labels(fig_title, fig, ax):
     fig.legend()
-    fig.suptitle(fig_title)
+    # fig.suptitle(fig_title)
     ax.set_xlabel('x (px)')
     ax.set_ylabel('y (px)')
 
@@ -93,11 +124,11 @@ def set_style(fig, ax):
     ax.set_aspect(1)
     ax.set_xlim(0, 256)
     ax.set_ylim(0, 256)
-    ax.invert_yaxis()
+    # ax.invert_yaxis()
 
 
-def plot_full(mol_list, **kwargs):
-    fig, ax = plot_mol_list(mol_list, **kwargs)
+def plot_full(mol_list_file, **kwargs):
+    fig, ax = plot_mol_list(mol_list_file, **kwargs)
     set_labels(fig, ax)
     set_style(fig, ax)
     return fig, ax
@@ -135,7 +166,7 @@ if __name__ == '__main__':
         if args.lag_time:
             title_str += ', lag time: ' + str(params['lag-time'])
 
-        fig, ax = plot_mol_list(mol_list, label=None)
+        fig, ax = plot_mol_list(params['mlist'], label=None)
         for cell_num, roi_json_file in enumerate(params['rois']):
             rois = load_rois(roi_json_file)
             for roi_name, roi in rois.items():
