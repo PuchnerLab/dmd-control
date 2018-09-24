@@ -28,17 +28,22 @@ def load_rois(roi_json_file):
 
 
 def load_mol_list(mol_list_file):
-    fields = [
-        'x', 'y', 'xc', 'yc', 'h', 'a', 'w', 'phi', 'ax', 'bg', 'i', 'c', 'fi',
-        'fr', 'tl', 'lk', 'z', 'zc'
-    ]
     ext = mol_list_file.split('.')[-1]
     if ext == 'bin':
         from storm_analysis.sa_library.readinsight3 import I3Reader
+        fields = [
+            'x', 'y', 'xc', 'yc', 'h', 'a', 'w', 'phi', 'ax', 'bg', 'i', 'c', 'fi',
+            'fr', 'tl', 'lk', 'z', 'zc'
+        ]
         mol_list_bin = I3Reader(mol_list_file)
         mol_list = pd.DataFrame(mol_list_bin.localizations, columns=fields)
     else:
+        fields = [
+            'cas', 'x', 'y', 'xc', 'yc', 'h', 'a', 'w', 'phi', 'ax', 'bg', 'i', 'fr',
+            'tl', 'lk', 'valid', 'z', 'zc'
+        ]
         mol_list = pd.read_csv(mol_list_file, sep='\t')
+        mol_list.columns = fields
     return mol_list
 
 
