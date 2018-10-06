@@ -28,6 +28,8 @@ SHAPE = 'circle'
 SIZE = 5
 
 CALIBRATION_MODE = False
+CALIBRATION_TEST_MODE = False
+CALIBRATION_STEP = 10
 
 INV_TRANSFORM = np.eye(3, dtype=np.float32)
 
@@ -43,7 +45,7 @@ MAP2 = np.zeros(DMA.shape, dtype='float32')
 MODE = '(BLACK)'
 
 
-def calibration_pattern(nx=4, ny=4, screen_fraction=0.3):
+def calibration_pattern(nx=4, ny=4, screen_fraction=0.3, dim=DMA_DIM):
     global DMA_DIM, SIZE
     width, height = DMA_DIM
 
@@ -62,7 +64,7 @@ def calibration_pattern(nx=4, ny=4, screen_fraction=0.3):
     # sx = int((screen_fraction * w - nx * 2 * s) / (nx - 1))
     # sy = int((screen_fraction * h - ny * 2 * s) / (ny - 1))
 
-    pattern = np.zeros(DMA_DIM[-1::-1])
+    pattern = np.zeros(dim[-1::-1])
     for i in range(nx):
         for j in range(ny):
             if SIZE != 0:
@@ -131,8 +133,9 @@ def handlekey(key):
     """
     Apply action after keypress.
     """
-    global CALIBRATION_MODE, CAMERA, CAMERA_IMG, DMA, INV_TRANSFORM, \
-        MAP1, MAP2, MODE, SIZE, SHAPE
+    global CALIBRATION_MODE, CALIBRATION_STEP, CALIBRATION_TEST_MODE, CAMERA, \
+        CAMERA_DIM, CAMERA_IMG, DMA, INV_TRANSFORM, MAP1, MAP2, MODE, SIZE, \
+        SHAPE
     if key == 27:
         cv2.destroyAllWindows()
         return 1
@@ -179,8 +182,11 @@ def handlekey(key):
         CALIBRATION_MODE = True
         DMA = calibration_pattern()
         MODE = '(CALIBRATION)'
+    elif key == ord('T'):
+        CALIBRATION_TEST_MODE = True
+        CAMERA = calibration_pattern(dim=MONITOR_DIM)
+        MODE = '(CALIBRATION TEST)'
     if CALIBRATION_MODE:
-        CALIBRATION_STEP = 10
         if key == ord('W'):
             M = np.float32([[1, 0, 0], [0, 1, -CALIBRATION_STEP]])
             DMA = cv2.warpAffine(DMA, M, DMA_DIM)
@@ -195,6 +201,24 @@ def handlekey(key):
             DMA = cv2.warpAffine(DMA, M, DMA_DIM)
         elif key == ord('=') or key == ord('-'):
             DMA = calibration_pattern()
+        elif key == ord('\n') or key == ord('\r'):
+            CALIBRATION_MODE = False
+            MODE = ''
+    if CALIBRATION_TEST_MODE:
+        if key == ord('W'):
+            M = np.float32([[1, 0, 0], [0, 1, -CALIBRATION_STEP]])
+            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
+        elif key == ord('A'):
+            M = np.float32([[1, 0, -CALIBRATION_STEP], [0, 1, 0]])
+            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
+        elif key == ord('S'):
+            M = np.float32([[1, 0, 0], [0, 1, CALIBRATION_STEP]])
+            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
+        elif key == ord('D'):
+            M = np.float32([[1, 0, CALIBRATION_STEP], [0, 1, 0]])
+            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
+        elif key == ord('=') or key == ord('-'):
+            CAMERA = calibration_pattern(dim=MONITOR_DIM)
         elif key == ord('\n') or key == ord('\r'):
             CALIBRATION_MODE = False
             MODE = ''
