@@ -144,8 +144,6 @@ def handlekey(key):
     # for return will depend on the platform, so \n and \r are both
     # handled.
     elif key == ord('\n') or key == ord('\r'):
-        import time
-        t0 = time.time()
         DMA = cv2.remap(CAMERA, MAP1, MAP2, cv2.INTER_CUBIC)
         MODE = '(SENT)'
     elif key == ord('f'):
