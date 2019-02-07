@@ -80,12 +80,13 @@ def fit_gaussian(img, blobs):
     from storm_analysis.sa_library.gaussfit import fitEllipticalGaussian
     gaussians = np.zeros((blobs.shape[0], 5), dtype=blobs.dtype)
     for b, _ in enumerate(blobs):
-        radius = 2 * blobs[b, 2]
-        region = img[int(blobs[b, 0] - radius):int(blobs[b, 0] + radius),
-                     int(blobs[b, 1] - radius):int(blobs[b, 1] + radius)]
+        x, y, r = blobs[b, :].astype('uint16')
+        r *= 2
+        # image row-col convention is the opposite of x-y
+        region = img[y - r:y + r, x - r:x + r]
         params = fitEllipticalGaussian(region)
         gaussians[b, :] = params[0][2:7]
-        gaussians[b, 0:2] += blobs[b, 0:2] - radius
+        gaussians[b, 0:2] += blobs[b, 0:2] - r
         print(params)
     return gaussians
 
@@ -150,89 +151,65 @@ def circularity(labeled_edge):
     return labeled_edge.area / (labeled_edge.perimeter / (2 * np.pi))**2
 
 
-def sort_points(points, npoints=(4, 4)):
-    """Sorts a grid pattern. The default is a 4x4 grid.
-    """
-    width, height = npoints
-    tmp = points.copy()
-
-    # Construct view with same datatype as ``points`` to select either
-    # column or row to sort by.
-    stack = []
-    viewtype = '{0},{0},{0}'.format(points.dtype)
-    # Sort in-place
-    tmp.view(viewtype).sort(order=['f1'], axis=0)
-    for j in range(height):
-        stack.append(tmp[height * j:height * (j + 1), :])
-    for s in stack:
-        s.view(viewtype).sort(order=['f0'], axis=0)
-    return np.vstack(stack)
+def sort_points(pts):
+    # Sort vertically
+    y, x = np.mgrid[np.min(pts[:, 0]) - 1:np.max(pts[:, 0]) + 1,
+                    np.min(pts[:, 1]) - 1:np.max(pts[:, 1]) + 1]
+    tree = spatial.KDTree(list(zip(x.ravel(), y.ravel())))
+    distances, indices = tree.query(np.array(pts[:, :2]))
+    return pts[np.argsort(indices)]
 
 
-if __name__ == '__main__':
+def main():
     parser = ArgumentParser(description='Process stuff.')
 
     parser.add_argument(
         '--screen',
         type=str,
         default='',
-        help="""Path of image of calibration image on
-                             as it appears on screen.
-                             """)
+        help=
+        """Path of image of calibration image on as it appears on screen.""")
 
     parser.add_argument(
         '--sample',
         type=str,
         default='',
-        help="""Path of image of calibration image on
-                             sample.
-                             """)
+        help="""Path of image of calibration image on sample.""")
 
     parser.add_argument(
         '--output',
         type=str,
         default='',
-        help="""Path of file to output the
-                             column-separated transformation matrix.
-                             """)
-
-    parser.add_argument(
-        '--npoints',
-        nargs='+',
-        type=int,
-        # TODO Add help for npoints, 3 or 4 arguments
-        # depending on calibration pattern.
-        help="""""")
+        help=
+        """Path of file to output the column-separated transformation matrix."""
+    )
 
     parser.add_argument(
         '--ttype',
         type=str,
         default='polynomial',
-        help="""The type of transformation to use.
-                             Allowed values are polynomial and
-                             projective. By default a polynomial of
-                             order 3 is used. Polynomial should be
-                             more accurate, but if the transformation
-                             appears unstable, then use projective.
-                             """)
-    # help="""Triple of number of points in the Z
-    #      shape of the calibration image. Default
-    #      is '3 2 3': 3 points on top, 2 points
-    #      diagonally down, and 3 points on the
-    #      bottom.
-    #      """
+        help=
+        """The type of transformation to use. Allowed values are polynomial and projective. By default a polynomial of order 3 is used. Polynomial should be more accurate, but if the transformation appears unstable, then use projective."""
+    )
 
     parser.add_argument(
         '--fit',
         type=int,
         default=1,
-        help="""Perform Gaussian fitting after blob detection.
-                             default is 1 (perform fitting).  Supply 0 to skip
-                             fitting..
-                             """)
+        help=
+        """Perform Gaussian fitting after blob detection. Default is 1 (perform fitting). Supply 0 to skip fitting."""
+    )
+
+    parser.add_argument(
+        '--inverty',
+        type=bool,
+        default=False,
+        help="""Inidicate whether the camera image is y-inverted. This will be
+taken into account in the transfomation by forcing a reversal of the
+sorted keypoints.""")
 
     args, _ = parser.parse_known_args()
-
+    print(sys.argv)
     if not args.screen:
         print('Provide a screen image.', file=sys.stderr)
         sys.exit(1)
