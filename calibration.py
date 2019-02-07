@@ -122,7 +122,7 @@ def label_image(img, min_area=90, min_circ=0.25):
 
 
 def load_image(img_file):
-    img = io.imread(img_file, as_grey=True)
+    img = io.imread(img_file, as_gray=True)
     return img
 
 
@@ -240,45 +240,28 @@ if __name__ == '__main__':
         print('Provide a sample image.', file=sys.stderr)
         sys.exit(1)
 
-    # screen = '../dma_calibration_image_Z_20171103.png'
-    # sample = '../movie_0002_calibration_box_smudge.png'
-
     screen = load_image(args.screen)
     sample = load_image(args.sample)
     if sample.shape != (512, 512):
         sample = transform.resize(sample, (512, 512))
 
     screen_coords = detect_points(screen)
-    # screen_coords[:, :2] = screen_coords[:, 1::-1]
-
     sample_coords = detect_points(sample)
-    # sample_coords[:, :2] = sample_coords[:, 1::-1]
 
-    screen_coords_sorted = sort_points(screen_coords, args.npoints)
-    # Account for 180 degree rotation by reversing order of points
-    sample_coords_sorted = sort_points(sample_coords, args.npoints[-1::-1])
+    screen_coords_sorted = sort_points(screen_coords)
+    sample_coords_sorted = sort_points(sample_coords)
 
     if args.fit:
-        sample_coords_sorted[:, :2] = sample_coords_sorted[:, 1::-1]
         sample_coords_sorted = fit_gaussian(sample, sample_coords_sorted)
-        sample_coords_sorted[:, :2] = sample_coords_sorted[:, 1::-1]
-    sample_coords_sorted[:] = sample_coords_sorted[-1::-1]
 
-    # # Transformation of screen -> sample
-    # tform = transform.estimate_transform(ttype='projective',
-    #                               src=screen_coords_sorted,
-    #                               dst=sample_coords_sorted)
+    if args.inverty:
+        sample_coords_sorted[:, :2] = sample_coords_sorted[-1::-1, :2]
 
-    tparams = {'ttype': args.ttype}
-    if args.ttype == 'polynomial':
-        tparams['order'] = 3
-
+    tparams = {'ttype': args.ttype, 'order': 3}
     tform = transform.estimate_transform(
         src=screen_coords_sorted, dst=sample_coords_sorted, **tparams)
-
     tform_inv = transform.estimate_transform(
         src=sample_coords_sorted, dst=screen_coords_sorted, **tparams)
-
     sample_tform = transform.warp(
         image=sample.copy(),
         inverse_map=tform,
