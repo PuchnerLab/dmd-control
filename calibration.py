@@ -28,14 +28,14 @@ def detect_points(img, scale=1):
     params = cv2.SimpleBlobDetector_Params()
 
     params.thresholdStep = 1
-    params.minThreshold = 100
+    params.minThreshold = 50
     params.maxThreshold = 255
 
     params.filterByColor = False
 
     params.filterByArea = True
-    params.minArea = 30
-    params.maxArea = 1000
+    params.minArea = 10
+    params.maxArea = 100
 
     params.filterByCircularity = True
     params.minCircularity = 0.5
