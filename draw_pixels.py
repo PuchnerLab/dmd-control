@@ -182,7 +182,7 @@ def handlekey(key):
         DMA = calibration_pattern()
         MODE = '(CALIBRATION)'
     elif key == ord('T'):
-        CAMERA = calibration_pattern(dim=MONITOR_DIM, screen_fraction=0.7)
+        CAMERA = WHITE - calibration_pattern(dim=MONITOR_DIM, screen_fraction=0.7)
     if CALIBRATION_MODE:
         CALIBRATION_STEP = 10
         if key == ord('W'):
