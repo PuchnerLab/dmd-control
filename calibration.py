@@ -16,10 +16,13 @@ from argparse import ArgumentParser
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+from matplotlib_scalebar.scalebar import ScaleBar
 import numpy as np
 from skimage import feature, io, measure, morphology, transform
+from scipy import spatial
 
 import cv2
+from scipy.stats import iqr
 
 
 def detect_points(img, scale=1):
@@ -265,23 +268,34 @@ sorted keypoints.""")
     ax[0, 0].plot(
         sample_coords_sorted[:, 0],
         sample_coords_sorted[:, 1],
-        '-or',
+        '-o',
+        color='tab:red',
         markersize=3,
         linewidth=1)
     ax[0, 0].plot(
         tform(screen_coords_sorted)[:, 0],
         tform(screen_coords_sorted)[:, 1],
-        '-ob',
+        '-o',
+        color='tab:blue',
         markersize=3,
         linewidth=1)
-    ax[0, 0].set_xlabel('x (px)')
-    ax[0, 0].set_ylabel('y (px)')
+    # ax[0, 0].set_xlabel('x (px)')
+    # ax[0, 0].set_ylabel('y (px)')
+    ax[0, 0].set_xticks([])
+    ax[0, 0].set_yticks([])
+    scalebar = ScaleBar(
+        160e-9 / 2,  # 1 pixel = 160 nm / scale
+        frameon=False,
+        color='white',
+        location='lower right')
+    ax[0, 0].add_artist(scalebar)
 
     ax[0, 1].imshow(screen, cmap=plt.cm.gray)
     ax[0, 1].plot(
         screen_coords_sorted[:, 0],
         screen_coords_sorted[:, 1],
-        '-or',
+        '-o',
+        color='tab:red',
         markersize=3,
         linewidth=1)
     ax[0, 1].set_xlabel('x (px)')
@@ -291,7 +305,8 @@ sorted keypoints.""")
     ax[1, 0].plot(
         tform(screen_coords_sorted)[:, 0],
         tform(screen_coords_sorted)[:, 1],
-        '-or',
+        '-o',
+        color='tab:red',
         markersize=3,
         linewidth=1)
     ax[1, 0].set_xlabel('x (px)')
@@ -302,10 +317,28 @@ sorted keypoints.""")
 
     distance = vec_length(sample_coords_sorted[:, :2] -
                           tform(screen_coords_sorted[:, :2]))
-    ax[1, 1].plot(
-        distance, label='{:0.4f} +/- {:0.4f} nm'.format(160 * distance.mean() / 2, 160 * distance.std() / 2))
-    ax[1, 1].set_xlabel('point')
-    ax[1, 1].set_ylabel('discrepancy (nm)')
+    # ax[1, 1].plot(
+    #     distance, label='{:0.4f} +/- {:0.4f} nm'.format(160 * distance.mean() / 2, 160 * distance.std() / 2))
+    # nbins = int((distance.max() - distance.min()) /
+    #             (2 * iqr(distance) / distance.shape[0]**(1 / 3)))
+    ax[1, 1].hist(
+        # FIXME: Should not have the image-pixel scaling hard coded
+        160 * distance / (sample.shape[0] / 256),
+        histtype='bar',
+        ec='white',
+        bins=int(np.sqrt(distance.shape[0])),
+        color='tab:purple',
+        label='{:0.4f} +/- {:0.4f} nm'.format(160 * distance.mean() / 2,
+                                              160 * distance.std() / 2))
+    ax[1, 1].set_xlabel('discrepancy (nm)')
+    # ax[1, 1].set_xlabel('point')
+    # ax[1, 1].set_ylabel('discrepancy (nm)')
     ax[1, 1].legend()
     fig.tight_layout()
     plt.show()
+
+    return tform.params
+
+
+if __name__ == '__main__':
+    main()
