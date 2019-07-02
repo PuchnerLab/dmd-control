@@ -226,19 +226,18 @@ def printdoc():
         print('{:>{s}} : {}'.format(k, v, s=space))
 
 
-def _generate_maps(tform):
+def _generate_maps(tform, order=3):
     global CAMERA_DIM, DMA_DIM, MAP1, MAP2
     # src, dst, tform = _warp_test()
     x, y = np.meshgrid(np.arange(DMA_DIM[0]), np.arange(DMA_DIM[1]))
-    one = np.ones(x.shape, dtype=x.dtype)
-    # [(m-n, n) for m in range(4) for n in range(m+1)]
-    powers = np.stack((one, x, y, x**2, x * y, y**2, x**3,
-                       x**2 * y, x * y**2, y**3))
+    powers = (x**i * y**(j-i)
+              for j in range(order+1)
+              for i in range(j+1))
     mapx = np.zeros(DMA_DIM[-1::-1], dtype='float32')
     mapy = np.zeros(DMA_DIM[-1::-1], dtype='float32')
-    for i in range(10):
-        mapx += tform[0, i] * powers[i]
-        mapy += tform[1, i] * powers[i]
+    for i, p in enumerate(powers):
+        mapx += tform[0, i] * p
+        mapy += tform[1, i] * p
     MAP1, MAP2 = cv2.convertMaps(
         map1=mapx, map2=mapy, dstmap1type=cv2.CV_16SC2, nninterpolation=False)
     return MAP1, MAP2
