@@ -17,7 +17,7 @@ WHITE = 65535
 BLACK = 0
 
 # Hardware constants
-DMA_DIM = (1200, 800)
+DMA_DIM = (1280, 800)
 MONITOR_DIM = (512, 512)
 CAMERA_DIM = (256, 256)
 
