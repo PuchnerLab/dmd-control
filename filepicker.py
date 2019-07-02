@@ -7,13 +7,13 @@ standard with Python.
 """
 
 
-def filepicker():
+def filepicker(**options):
     """
     File-picker for loading a new transformation matrix in the middle
     of a session, just for convenience.
     """
     Tk().withdraw()
-    filename = askopenfilename()
+    filename = askopenfilename(**options)
     # ``askopenfilename`` returns an empty ``tuple`` if no file is
     # selected. Return an empty ``str`` instead for type-safety.
     return '' if type(filename) == tuple else filename

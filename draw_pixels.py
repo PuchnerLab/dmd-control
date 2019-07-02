@@ -17,7 +17,7 @@ WHITE = 65535
 BLACK = 0
 
 # Hardware constants
-DMA_DIM = (1200, 800)
+DMA_DIM = (1280, 800)
 MONITOR_DIM = (512, 512)
 CAMERA_DIM = (256, 256)
 
@@ -28,7 +28,6 @@ SHAPE = 'circle'
 SIZE = 5
 
 CALIBRATION_MODE = False
-CALIBRATION_TEST_MODE = False
 
 INV_TRANSFORM = np.eye(3, dtype=np.float32)
 
@@ -45,8 +44,8 @@ MODE = '(BLACK)'
 
 
 def calibration_pattern(nx=4, ny=4, screen_fraction=0.3, dim=DMA_DIM):
-    global DMA_DIM, SIZE, WHITE
-    width, height = DMA_DIM
+    global SIZE
+    width, height = dim
 
     # Minimum spacing
     # sx = int(w / (nx * s) - 2)
@@ -67,8 +66,10 @@ def calibration_pattern(nx=4, ny=4, screen_fraction=0.3, dim=DMA_DIM):
     for i in range(nx):
         for j in range(ny):
             if SIZE != 0:
-                cv2.circle(pattern, (i * s_y + SIZE, j * s_y + SIZE), SIZE,
-                           (WHITE, WHITE, WHITE), -1)
+                cv2.circle(pattern, (i * s_y + SIZE + (width - s_y * (nx - 1)) // 2,
+                                     j * s_y + SIZE + (height - s_y * (ny - 1)) // 2),
+                           SIZE,
+                           (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
             else:
                 pattern[j * s_y + SIZE, i * s_y + SIZE] = WHITE
     return WHITE - pattern
@@ -132,8 +133,8 @@ def handlekey(key):
     """
     Apply action after keypress.
     """
-    global CALIBRATION_MODE, CALIBRATION_TEST_MODE, CAMERA, CAMERA_IMG, DMA, \
-        INV_TRANSFORM, MAP1, MAP2, MODE, MONITOR_DIM, SIZE, SHAPE
+    global CALIBRATION_MODE, CAMERA, CAMERA_IMG, DMA, INV_TRANSFORM, \
+        MAP1, MAP2, MODE, SIZE, SHAPE
     if key == 27:
         cv2.destroyAllWindows()
         return 1
@@ -183,9 +184,7 @@ def handlekey(key):
         DMA = calibration_pattern()
         MODE = '(CALIBRATION)'
     elif key == ord('T'):
-        CALIBRATION_TEST_MODE = True
-        CAMERA = calibration_pattern(screen_fraction=0.4, dim=MONITOR_DIM)
-        MODE = '(CALIBRATION TEST)'
+        CAMERA = calibration_pattern(dim=MONITOR_DIM, screen_fraction=0.7)
     if CALIBRATION_MODE:
         CALIBRATION_STEP = 10
         if key == ord('W'):
@@ -204,25 +203,6 @@ def handlekey(key):
             DMA = calibration_pattern()
         elif key == 8:
             CALIBRATION_MODE = False
-            MODE = ''
-    if CALIBRATION_TEST_MODE:
-        CALIBRATION_STEP = 10
-        if key == ord('W'):
-            M = np.float32([[1, 0, 0], [0, 1, -CALIBRATION_STEP]])
-            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
-        elif key == ord('A'):
-            M = np.float32([[1, 0, -CALIBRATION_STEP], [0, 1, 0]])
-            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
-        elif key == ord('S'):
-            M = np.float32([[1, 0, 0], [0, 1, CALIBRATION_STEP]])
-            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
-        elif key == ord('D'):
-            M = np.float32([[1, 0, CALIBRATION_STEP], [0, 1, 0]])
-            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
-        elif key == ord('=') or key == ord('-'):
-            CAMERA = calibration_pattern(screen_fraction=0.4, dim=MONITOR_DIM)
-        elif key == ord('\n') or key == ord('\r'):
-            CALIBRATION_TEST_MODE = False
             MODE = ''
     return 0
 
@@ -252,18 +232,18 @@ def printdoc():
         print('{:>{s}} : {}'.format(k, v, s=space))
 
 
-def _generate_maps(tform):
+def _generate_maps(tform, order=3):
     global CAMERA_DIM, DMA_DIM, MAP1, MAP2
     # src, dst, tform = _warp_test()
     x, y = np.meshgrid(np.arange(DMA_DIM[0]), np.arange(DMA_DIM[1]))
-    on = np.ones(x.shape, dtype=x.dtype)
-    powers = np.stack((on, x, y, x**2, x * y, y**2, x**3,
-                       x**2 * y, x * y**2, y**3))
+    powers = (x**i * y**(j-i)
+              for j in range(order+1)
+              for i in range(j+1))
     mapx = np.zeros(DMA_DIM[-1::-1], dtype='float32')
     mapy = np.zeros(DMA_DIM[-1::-1], dtype='float32')
-    for i in range(10):
-        mapx += tform[0, i] * powers[i]
-        mapy += tform[1, i] * powers[i]
+    for i, p in enumerate(powers):
+        mapx += tform[0, i] * p
+        mapy += tform[1, i] * p
     MAP1, MAP2 = cv2.convertMaps(
         map1=mapx, map2=mapy, dstmap1type=cv2.CV_16SC2, nninterpolation=False)
     return MAP1, MAP2
