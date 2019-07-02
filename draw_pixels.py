@@ -28,8 +28,6 @@ SHAPE = 'circle'
 SIZE = 5
 
 CALIBRATION_MODE = False
-CALIBRATION_TEST_MODE = False
-CALIBRATION_STEP = 10
 
 INV_TRANSFORM = np.eye(3, dtype=np.float32)
 
@@ -45,7 +43,7 @@ MAP2 = np.zeros(DMA.shape, dtype='float32')
 MODE = '(BLACK)'
 
 
-def calibration_pattern(nx=4, ny=4, screen_fraction=0.3, dim=DMA_DIM):
+def calibration_pattern(nx=4, ny=4, screen_fraction=0.3):
     global DMA_DIM, SIZE
     width, height = DMA_DIM
 
@@ -64,7 +62,7 @@ def calibration_pattern(nx=4, ny=4, screen_fraction=0.3, dim=DMA_DIM):
     # sx = int((screen_fraction * w - nx * 2 * s) / (nx - 1))
     # sy = int((screen_fraction * h - ny * 2 * s) / (ny - 1))
 
-    pattern = np.zeros(dim[-1::-1])
+    pattern = np.zeros(DMA_DIM[-1::-1])
     for i in range(nx):
         for j in range(ny):
             if SIZE != 0:
@@ -133,9 +131,8 @@ def handlekey(key):
     """
     Apply action after keypress.
     """
-    global CALIBRATION_MODE, CALIBRATION_STEP, CALIBRATION_TEST_MODE, CAMERA, \
-        CAMERA_DIM, CAMERA_IMG, DMA, INV_TRANSFORM, MAP1, MAP2, MODE, SIZE, \
-        SHAPE
+    global CALIBRATION_MODE, CAMERA, CAMERA_IMG, DMA, INV_TRANSFORM, \
+        MAP1, MAP2, MODE, SIZE, SHAPE
     if key == 27:
         cv2.destroyAllWindows()
         return 1
