@@ -29,14 +29,13 @@ SIZE = 5
 
 CALIBRATION_MODE = False
 CALIBRATION_TEST_MODE = False
-CALIBRATION_STEP = 10
 
 INV_TRANSFORM = np.eye(3, dtype=np.float32)
 
 CAMERA_IMG = np.zeros(MONITOR_DIM, np.uint16)
 CAMERA = CAMERA_IMG.copy()
 
-DMA = np.zeros(DMA_DIM[-1::-1], np.uint8)
+DMA = np.ones(DMA_DIM[-1::-1], np.uint8)
 DMA_TEMP = DMA.copy()
 
 MAP1 = np.zeros(DMA.shape, dtype='float32')
@@ -46,7 +45,7 @@ MODE = '(BLACK)'
 
 
 def calibration_pattern(nx=4, ny=4, screen_fraction=0.3, dim=DMA_DIM):
-    global DMA_DIM, SIZE
+    global DMA_DIM, SIZE, WHITE
     width, height = DMA_DIM
 
     # Minimum spacing
@@ -69,10 +68,10 @@ def calibration_pattern(nx=4, ny=4, screen_fraction=0.3, dim=DMA_DIM):
         for j in range(ny):
             if SIZE != 0:
                 cv2.circle(pattern, (i * s_y + SIZE, j * s_y + SIZE), SIZE,
-                           (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
+                           (WHITE, WHITE, WHITE), -1)
             else:
                 pattern[j * s_y + SIZE, i * s_y + SIZE] = WHITE
-    return pattern
+    return WHITE - pattern
 
 
 def draw(event, x, y, flags, param):
@@ -91,22 +90,22 @@ def draw(event, x, y, flags, param):
        (cv2.EVENT_LBUTTONDOWN or cv2.EVENT_RBUTTONDOWN):
         if DRAWING:
             if SHAPE == 'circle':
-                cv2.circle(CAMERA, (x, y), SIZE, (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
-                cv2.circle(CAMERA_IMG, (x, y), SIZE, (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
+                cv2.circle(CAMERA, (x, y), SIZE, (WHITE, WHITE, WHITE), -1)
+                cv2.circle(CAMERA_IMG, (x, y), SIZE, (WHITE, WHITE, WHITE), -1)
             if SHAPE == 'rect':
                 cv2.rectangle(CAMERA, (x - SIZE, y - SIZE),
-                              (x + SIZE, y + SIZE), (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
+                              (x + SIZE, y + SIZE), (WHITE, WHITE, WHITE), -1)
                 cv2.rectangle(CAMERA_IMG, (x - SIZE, y - SIZE),
-                              (x + SIZE, y + SIZE), (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
+                              (x + SIZE, y + SIZE), (WHITE, WHITE, WHITE), -1)
         if ERASING:
             if SHAPE == 'circle':
-                cv2.circle(CAMERA, (x, y), SIZE, (BLACK, BLACK, BLACK), -1, lineType=cv2.LINE_AA)
-                cv2.circle(CAMERA_IMG, (x, y), SIZE, (BLACK, BLACK, BLACK), -1, lineType=cv2.LINE_AA)
+                cv2.circle(CAMERA, (x, y), SIZE, (BLACK, BLACK, BLACK), -1)
+                cv2.circle(CAMERA_IMG, (x, y), SIZE, (BLACK, BLACK, BLACK), -1)
             if SHAPE == 'rect':
                 cv2.rectangle(CAMERA, (x - SIZE, y - SIZE),
-                              (x + SIZE, y + SIZE), (BLACK, BLACK, BLACK), -1, lineType=cv2.LINE_AA)
+                              (x + SIZE, y + SIZE), (BLACK, BLACK, BLACK), -1)
                 cv2.rectangle(CAMERA_IMG, (x - SIZE, y - SIZE),
-                              (x + SIZE, y + SIZE), (BLACK, BLACK, BLACK), -1, lineType=cv2.LINE_AA)
+                              (x + SIZE, y + SIZE), (BLACK, BLACK, BLACK), -1)
 
     if event == cv2.EVENT_LBUTTONUP:
         DRAWING = False
@@ -133,21 +132,22 @@ def handlekey(key):
     """
     Apply action after keypress.
     """
-    global CALIBRATION_MODE, CALIBRATION_STEP, CALIBRATION_TEST_MODE, CAMERA, \
-        CAMERA_DIM, CAMERA_IMG, DMA, INV_TRANSFORM, MAP1, MAP2, MODE, SIZE, \
-        SHAPE
+    global CALIBRATION_MODE, CALIBRATION_TEST_MODE, CAMERA, CAMERA_IMG, DMA, \
+        INV_TRANSFORM, MAP1, MAP2, MODE, MONITOR_DIM, SIZE, SHAPE
     if key == 27:
         cv2.destroyAllWindows()
         return 1
     # Clear the screen with the BACKSPACE key
     elif key == 8:
-        CAMERA[:] = 0
-        DMA[:] = 0
+        CAMERA[:] = BLACK
+        DMA[:] = WHITE
     # Send image from CAMERA to DMA with the ENTER key. The keycode
     # for return will depend on the platform, so \n and \r are both
     # handled.
     elif key == ord('\n') or key == ord('\r'):
-        DMA = cv2.remap(CAMERA, MAP1, MAP2, cv2.INTER_CUBIC)
+        import time
+        t0 = time.time()
+        DMA = WHITE - cv2.remap(CAMERA, MAP1, MAP2, cv2.INTER_CUBIC)
         MODE = '(SENT)'
     elif key == ord('f'):
         cv2.setWindowProperty('DMA', cv2.WND_PROP_FULLSCREEN, 1)
@@ -166,10 +166,10 @@ def handlekey(key):
         if SIZE <= 0:
             SIZE = 0
     elif key == ord('@'):
-        DMA[:] = WHITE
+        DMA[:] = BLACK  # WHITE
         MODE = '(WHITE)'
     elif key == ord('!'):
-        DMA[:] = BLACK
+        DMA[:] = WHITE  # BLACK
         MODE = '(BLACK)'
     elif key == ord('o'):
         filename = filepicker.filepicker()
@@ -184,27 +184,29 @@ def handlekey(key):
         MODE = '(CALIBRATION)'
     elif key == ord('T'):
         CALIBRATION_TEST_MODE = True
-        CAMERA = calibration_pattern(dim=MONITOR_DIM)
+        CAMERA = calibration_pattern(screen_fraction=0.4, dim=MONITOR_DIM)
         MODE = '(CALIBRATION TEST)'
     if CALIBRATION_MODE:
+        CALIBRATION_STEP = 10
         if key == ord('W'):
             M = np.float32([[1, 0, 0], [0, 1, -CALIBRATION_STEP]])
-            DMA = cv2.warpAffine(DMA, M, DMA_DIM)
+            DMA = cv2.warpAffine(DMA, M, DMA_DIM, borderMode=cv2.BORDER_WRAP)
         elif key == ord('A'):
             M = np.float32([[1, 0, -CALIBRATION_STEP], [0, 1, 0]])
-            DMA = cv2.warpAffine(DMA, M, DMA_DIM)
+            DMA = cv2.warpAffine(DMA, M, DMA_DIM, borderMode=cv2.BORDER_WRAP)
         elif key == ord('S'):
             M = np.float32([[1, 0, 0], [0, 1, CALIBRATION_STEP]])
-            DMA = cv2.warpAffine(DMA, M, DMA_DIM)
+            DMA = cv2.warpAffine(DMA, M, DMA_DIM, borderMode=cv2.BORDER_WRAP)
         elif key == ord('D'):
             M = np.float32([[1, 0, CALIBRATION_STEP], [0, 1, 0]])
-            DMA = cv2.warpAffine(DMA, M, DMA_DIM)
+            DMA = cv2.warpAffine(DMA, M, DMA_DIM, borderMode=cv2.BORDER_WRAP)
         elif key == ord('=') or key == ord('-'):
             DMA = calibration_pattern()
-        elif key == ord('\n') or key == ord('\r'):
+        elif key == 8:
             CALIBRATION_MODE = False
             MODE = ''
     if CALIBRATION_TEST_MODE:
+        CALIBRATION_STEP = 10
         if key == ord('W'):
             M = np.float32([[1, 0, 0], [0, 1, -CALIBRATION_STEP]])
             CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
@@ -218,9 +220,9 @@ def handlekey(key):
             M = np.float32([[1, 0, CALIBRATION_STEP], [0, 1, 0]])
             CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
         elif key == ord('=') or key == ord('-'):
-            CAMERA = calibration_pattern(dim=MONITOR_DIM)
+            CAMERA = calibration_pattern(screen_fraction=0.4, dim=MONITOR_DIM)
         elif key == ord('\n') or key == ord('\r'):
-            CALIBRATION_MODE = False
+            CALIBRATION_TEST_MODE = False
             MODE = ''
     return 0
 
@@ -254,9 +256,8 @@ def _generate_maps(tform):
     global CAMERA_DIM, DMA_DIM, MAP1, MAP2
     # src, dst, tform = _warp_test()
     x, y = np.meshgrid(np.arange(DMA_DIM[0]), np.arange(DMA_DIM[1]))
-    one = np.ones(x.shape, dtype=x.dtype)
-    # [(m-n, n) for m in range(4) for n in range(m+1)]
-    powers = np.stack((one, x, y, x**2, x * y, y**2, x**3,
+    on = np.ones(x.shape, dtype=x.dtype)
+    powers = np.stack((on, x, y, x**2, x * y, y**2, x**3,
                        x**2 * y, x * y**2, y**3))
     mapx = np.zeros(DMA_DIM[-1::-1], dtype='float32')
     mapy = np.zeros(DMA_DIM[-1::-1], dtype='float32')
@@ -308,9 +309,9 @@ def main():
         INV_TRANSFORM = loadtransform(args.file)
         MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params)
     else:
-        INV_TRANSFORM = np.array([[0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                                  [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]],
-                                 dtype='float64')
+        INV_TRANSFORM = np.array([[0,1,0,0,0,0,0,0,0,0],
+                                  [0,0,1,0,0,0,0,0,0,0]],
+                                  dtype='float64')
         MAP1, MAP2 = _generate_maps(INV_TRANSFORM)
         print(
             'No transformation file specified, using identity.',

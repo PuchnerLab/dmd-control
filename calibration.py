@@ -18,6 +18,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage import feature, io, measure, morphology, transform
+import scipy.spatial as spatial
 
 import cv2
 
@@ -28,7 +29,7 @@ def detect_points(img, scale=1):
     params = cv2.SimpleBlobDetector_Params()
 
     params.thresholdStep = 1
-    params.minThreshold = 50
+    params.minThreshold = 70
     params.maxThreshold = 255
 
     params.filterByColor = False
@@ -123,7 +124,7 @@ def label_image(img, min_area=90, min_circ=0.25):
 
 
 def load_image(img_file):
-    img = io.imread(img_file, as_gray=True)
+    img = io.imread(img_file, as_grey=True)
     return img
 
 
@@ -151,10 +152,14 @@ def circularity(labeled_edge):
     return labeled_edge.area / (labeled_edge.perimeter / (2 * np.pi))**2
 
 
-def sort_points(pts):
+def sort_points(pts, invertx=False, inverty=False):
     # Sort vertically
-    y, x = np.mgrid[np.min(pts[:, 0]) - 1:np.max(pts[:, 0]) + 1,
-                    np.min(pts[:, 1]) - 1:np.max(pts[:, 1]) + 1]
+    xmin = np.max if invertx else np.min
+    xmax = np.min if invertx else np.max
+    ymin = np.max if inverty else np.min
+    ymax = np.min if inverty else np.max
+    x, y = np.mgrid[int(xmin(pts[:, 0])):int(xmax(pts[:, 0])):(-1 if invertx else 1),
+                    int(ymin(pts[:, 1])):int(ymax(pts[:, 1])):(-1 if inverty else 1)]
     tree = spatial.KDTree(list(zip(x.ravel(), y.ravel())))
     distances, indices = tree.query(np.array(pts[:, :2]))
     return pts[np.argsort(indices)]
@@ -199,11 +204,19 @@ def main():
         help=
         """Perform Gaussian fitting after blob detection. Default is 1 (perform fitting). Supply 0 to skip fitting."""
     )
+	
+    parser.add_argument(
+        '--invertx',
+        type=bool,
+        default=False,
+        help="""Inidicate whether the camera image is y-inverted. This will be
+taken into account in the transfomation by forcing a reversal of the
+sorted keypoints.""")
 
     parser.add_argument(
         '--inverty',
         type=bool,
-        default=False,
+        default=True,
         help="""Inidicate whether the camera image is y-inverted. This will be
 taken into account in the transfomation by forcing a reversal of the
 sorted keypoints.""")
@@ -225,14 +238,11 @@ sorted keypoints.""")
     screen_coords = detect_points(screen)
     sample_coords = detect_points(sample)
 
-    screen_coords_sorted = sort_points(screen_coords)
+    screen_coords_sorted = sort_points(screen_coords, args.invertx, args.inverty)
     sample_coords_sorted = sort_points(sample_coords)
 
     if args.fit:
         sample_coords_sorted = fit_gaussian(sample, sample_coords_sorted)
-
-    if args.inverty:
-        sample_coords_sorted[:, :2] = sample_coords_sorted[-1::-1, :2]
 
     tparams = {'ttype': args.ttype, 'order': 3}
     tform = transform.estimate_transform(
@@ -303,9 +313,12 @@ sorted keypoints.""")
     distance = vec_length(sample_coords_sorted[:, :2] -
                           tform(screen_coords_sorted[:, :2]))
     ax[1, 1].plot(
-        distance, label='{:0.4f} +/- {:0.4f} nm'.format(160 * distance.mean() / 2, 160 * distance.std() / 2))
+        160 * distance / 2, label='{:0.4f} +/- {:0.4f} nm'.format(160 * distance.mean() / 2, 160 * distance.std() / 2))
     ax[1, 1].set_xlabel('point')
     ax[1, 1].set_ylabel('discrepancy (nm)')
     ax[1, 1].legend()
     fig.tight_layout()
     plt.show()
+
+if __name__ == '__main__':
+    main()
