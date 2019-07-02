@@ -66,8 +66,8 @@ def calibration_pattern(nx=4, ny=4, screen_fraction=0.3, dim=DMA_DIM):
     for i in range(nx):
         for j in range(ny):
             if SIZE != 0:
-                cv2.circle(pattern, (i * s_y + SIZE + (width - s_y * (nx - 1)) // 2,
-                                     j * s_y + SIZE + (height - s_y * (ny - 1)) // 2),
+                cv2.circle(pattern, (i * s_y + (width - s_y * (nx - 1)) // 2,
+                                     j * s_y + (height - s_y * (ny - 1)) // 2),
                            SIZE,
                            (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
             else:
