@@ -179,11 +179,8 @@ def handlekey(key):
         CALIBRATION_MODE = True
         DMA = calibration_pattern()
         MODE = '(CALIBRATION)'
-    elif key == ord('T'):
-        CALIBRATION_TEST_MODE = True
-        CAMERA = calibration_pattern(dim=MONITOR_DIM)
-        MODE = '(CALIBRATION TEST)'
     if CALIBRATION_MODE:
+        CALIBRATION_STEP = 10
         if key == ord('W'):
             M = np.float32([[1, 0, 0], [0, 1, -CALIBRATION_STEP]])
             DMA = cv2.warpAffine(DMA, M, DMA_DIM)
@@ -198,24 +195,6 @@ def handlekey(key):
             DMA = cv2.warpAffine(DMA, M, DMA_DIM)
         elif key == ord('=') or key == ord('-'):
             DMA = calibration_pattern()
-        elif key == ord('\n') or key == ord('\r'):
-            CALIBRATION_MODE = False
-            MODE = ''
-    if CALIBRATION_TEST_MODE:
-        if key == ord('W'):
-            M = np.float32([[1, 0, 0], [0, 1, -CALIBRATION_STEP]])
-            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
-        elif key == ord('A'):
-            M = np.float32([[1, 0, -CALIBRATION_STEP], [0, 1, 0]])
-            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
-        elif key == ord('S'):
-            M = np.float32([[1, 0, 0], [0, 1, CALIBRATION_STEP]])
-            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
-        elif key == ord('D'):
-            M = np.float32([[1, 0, CALIBRATION_STEP], [0, 1, 0]])
-            CAMERA = cv2.warpAffine(CAMERA, M, MONITOR_DIM)
-        elif key == ord('=') or key == ord('-'):
-            CAMERA = calibration_pattern(dim=MONITOR_DIM)
         elif key == ord('\n') or key == ord('\r'):
             CALIBRATION_MODE = False
             MODE = ''
