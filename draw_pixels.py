@@ -234,9 +234,9 @@ def _generate_maps(tform, order=3):
     global CAMERA_DIM, DMA_DIM, MAP1, MAP2
     # src, dst, tform = _warp_test()
     x, y = np.meshgrid(np.arange(DMA_DIM[0]), np.arange(DMA_DIM[1]))
-    powers = (x**i * y**(j-i)
-              for j in range(order+1)
-              for i in range(j+1))
+    powers = (x**(i - j) * y**j
+              for i in range(order + 1)
+              for j in range(i + 1))
     mapx = np.zeros(DMA_DIM[-1::-1], dtype='float32')
     mapy = np.zeros(DMA_DIM[-1::-1], dtype='float32')
     for i, p in enumerate(powers):
