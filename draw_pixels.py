@@ -43,9 +43,9 @@ MAP2 = np.zeros(DMA.shape, dtype='float32')
 MODE = '(BLACK)'
 
 
-def calibration_pattern(nx=4, ny=4, screen_fraction=0.3):
-    global DMA_DIM, SIZE
-    width, height = DMA_DIM
+def calibration_pattern(nx=4, ny=4, screen_fraction=0.3, dim=DMA_DIM):
+    global SIZE
+    width, height = dim
 
     # Minimum spacing
     # sx = int(w / (nx * s) - 2)
@@ -62,11 +62,13 @@ def calibration_pattern(nx=4, ny=4, screen_fraction=0.3):
     # sx = int((screen_fraction * w - nx * 2 * s) / (nx - 1))
     # sy = int((screen_fraction * h - ny * 2 * s) / (ny - 1))
 
-    pattern = np.zeros(DMA_DIM[-1::-1])
+    pattern = np.zeros(dim[-1::-1])
     for i in range(nx):
         for j in range(ny):
             if SIZE != 0:
-                cv2.circle(pattern, (i * s_y + SIZE, j * s_y + SIZE), SIZE,
+                cv2.circle(pattern, (i * s_y + SIZE + (width - s_y * (nx - 1)) // 2,
+                                     j * s_y + SIZE + (height - s_y * (ny - 1)) // 2),
+                           SIZE,
                            (WHITE, WHITE, WHITE), -1, lineType=cv2.LINE_AA)
             else:
                 pattern[j * s_y + SIZE, i * s_y + SIZE] = WHITE
@@ -179,6 +181,8 @@ def handlekey(key):
         CALIBRATION_MODE = True
         DMA = calibration_pattern()
         MODE = '(CALIBRATION)'
+    elif key == ord('T'):
+        CAMERA = calibration_pattern(dim=MONITOR_DIM, screen_fraction=0.7)
     if CALIBRATION_MODE:
         CALIBRATION_STEP = 10
         if key == ord('W'):
