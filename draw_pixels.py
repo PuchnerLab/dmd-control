@@ -42,6 +42,8 @@ MAP2 = np.zeros(DMA.shape, dtype='float32')
 
 MODE = '(BLACK)'
 
+IS_POLY = False
+
 
 def calibration_pattern(nx=4, ny=4, screen_fraction=0.3, dim=DMA_DIM):
     global SIZE
@@ -122,11 +124,13 @@ def loadtransform(filename):
     read. It has to deal with the impedance mismatch between ``cv2``
     and ``skimage`` datatypes, float32 and float64, respectively.
     """
+    global IS_POLY
     params = np.loadtxt(filename, delimiter=',', dtype=np.float32)
     if len(params) == 2:
+        IS_POLY = True
         return transform.PolynomialTransform(params)
     else:
-        return transform.ProjectiveTransform(params)
+        return transform.SimilarityTransform(params)
 
 
 def handlekey(key):
@@ -134,7 +138,7 @@ def handlekey(key):
     Apply action after keypress.
     """
     global CALIBRATION_MODE, CAMERA, CAMERA_IMG, DMA, INV_TRANSFORM, \
-        MAP1, MAP2, MODE, SIZE, SHAPE
+        IS_POLY, MAP1, MAP2, MODE, SIZE, SHAPE
     if key == 27:
         cv2.destroyAllWindows()
         return 1
@@ -177,7 +181,8 @@ def handlekey(key):
         filename = filepicker.filepicker()
         if filename != '':
             INV_TRANSFORM = loadtransform(filename)
-            MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params)
+            order = int((np.sqrt(8 * INV_TRANSFORM.params.shape[1] + 1) - 3) // 2)
+            MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params, order)
     elif key == ord('h'):
         printdoc()
     elif key == ord('C'):
@@ -288,7 +293,8 @@ def main():
     args, _ = parser.parse_known_args()
     if args.file:
         INV_TRANSFORM = loadtransform(args.file)
-        MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params)
+        order = int((np.sqrt(8 * INV_TRANSFORM.params.shape[1] + 1) - 3) // 2)
+        MAP1, MAP2 = _generate_maps(INV_TRANSFORM.params, order)
     else:
         INV_TRANSFORM = np.array([[0,1,0,0,0,0,0,0,0,0],
                                   [0,0,1,0,0,0,0,0,0,0]],
