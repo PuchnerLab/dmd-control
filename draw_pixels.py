@@ -146,7 +146,10 @@ def handlekey(key):
     # for return will depend on the platform, so \n and \r are both
     # handled.
     elif key == ord('\n') or key == ord('\r'):
-        DMA[:] = WHITE - cv2.remap(CAMERA, MAP1, MAP2, cv2.INTER_AREA)
+        if IS_POLY:
+            DMA[:] = cv2.remap(WHITE - CAMERA, MAP1, MAP2, cv2.INTER_AREA)
+        else:
+            DMA[:] = cv2.warpPerspective(WHITE - CAMERA, INV_TRANSFORM.params, DMA_DIM, DMA)
         MODE = '(SENT)'
     elif key == ord('f'):
         cv2.setWindowProperty('DMA', cv2.WND_PROP_FULLSCREEN, 1)
