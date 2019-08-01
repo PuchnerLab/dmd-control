@@ -129,7 +129,7 @@ def label_image(img, min_area=10, min_circ=0.25):
 
 
 def load_image(img_file):
-    img = io.imread(img_file, as_grey=True)
+    img = io.imread(img_file, as_gray=True)
     return img
 
 
@@ -163,8 +163,9 @@ def sort_points(pts, invertx=False, inverty=False):
     xmax = np.min if invertx else np.max
     ymin = np.max if inverty else np.min
     ymax = np.min if inverty else np.max
-    x, y = np.mgrid[int(xmin(pts[:, 0])):int(xmax(pts[:, 0])):(-1 if invertx else 1),
-                    int(ymin(pts[:, 1])):int(ymax(pts[:, 1])):(-1 if inverty else 1)]
+    x, y = np.mgrid[
+        int(xmin(pts[:, 0])):int(xmax(pts[:, 0])):(-1 if invertx else 1),
+        int(ymin(pts[:, 1])):int(ymax(pts[:, 1])):(-1 if inverty else 1)]
     tree = spatial.KDTree(list(zip(x.ravel(), y.ravel())))
     distances, indices = tree.query(np.array(pts[:, :2]))
     return pts[np.argsort(indices)]
