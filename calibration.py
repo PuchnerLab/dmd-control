@@ -248,16 +248,19 @@ def main():
         print('Provide a sample image.', file=sys.stderr)
         sys.exit(1)
 
+    with open(args.params, 'r') as params_file:
+        params = yaml.load(params_file)
+
     screen = load_image(args.screen)
     sample = load_image(args.sample)
-    if sample.shape != (512, 512):
-        sample = transform.resize(sample, (512, 512))
+    if params['camerascale'] != 1:
+        sample = transform.rescale(sample, params['camerascale'])
 
     screen_coords = detect_points(screen)
     sample_coords = detect_points(sample)
 
-    screen_coords_sorted = sort_points(screen_coords, args.invertx,
-                                       args.inverty)
+    screen_coords_sorted = sort_points(screen_coords, params['invertx'],
+                                       params['inverty'])
     sample_coords_sorted = sort_points(sample_coords)
 
     if args.fit:
@@ -303,7 +306,7 @@ def main():
     ax[0, 0].set_xticks([])
     ax[0, 0].set_yticks([])
     scalebar = ScaleBar(
-        160e-9 / 2,  # 1 pixel = 160 nm / scale
+        params['pixelsize_nm'] * 1e-9 / params['camerascale'],
         frameon=False,
         color='white',
         location='lower right')
@@ -337,7 +340,7 @@ def main():
     distance = vec_length(sample_coords_sorted[:, :2] -
                           tform(screen_coords_sorted[:, :2]))
     ax[1, 1].violinplot(
-        160 * distance / (sample.shape[1] / 256),
+        params['pixelsize_nm'] * distance / params['camerascale'],
         widths=0.25,
         showmeans=True,
         showmedians=True)
