@@ -320,8 +320,8 @@ def main():
         marker='o',
         markersize=3,
         linewidth=1)
-    ax[0, 1].set_xlabel('x (px)')
-    ax[0, 1].set_ylabel('y (px)')
+    ax[0, 1].set_xticks([])
+    ax[0, 1].set_yticks([])
 
     ax[1, 0].imshow(screen_tform, cmap=plt.cm.gray)
     ax[1, 0].plot(
@@ -331,8 +331,8 @@ def main():
         marker='o',
         markersize=3,
         linewidth=1)
-    ax[1, 0].set_xlabel('x (px)')
-    ax[1, 0].set_ylabel('y (px)')
+    ax[1, 0].set_xticks([])
+    ax[1, 0].set_yticks([])
 
     def vec_length(array):
         return np.sqrt(np.sum(array**2, 1))
