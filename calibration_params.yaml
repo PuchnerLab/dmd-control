@@ -1,0 +1,8 @@
+npoints: [4, 4]  # x by y points in calibration pattern
+dmadim: [1280, 800]  # x by y pixels
+cameradim: [256, 256]  # x by y pixels
+camerascale: 2  # camera image oversampling
+pixelsize_nm: 160  # size of camera pixels on sample plane in nanometers
+invertx: 0
+inverty: 1
+fit: 1
