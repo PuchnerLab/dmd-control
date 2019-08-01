@@ -4,9 +4,10 @@ Created on Fri Jun 23 15:02:53 2017
 
 @author: Joe Eix & Angel Mancebo
 
-Takes a source image from DMA and the destination image from the image plane
-and finds the transformation matrix. Calibration images consist of four circles,
-with the centers being found through blob detection.
+    Takes a source image from DMA and the destination image from the
+    image plane and finds the transformation matrix. Calibration
+    images consist of four circles, with the centers being found
+    through blob detection.
 """
 
 from __future__ import division, print_function
@@ -60,7 +61,9 @@ def fit_gaussian(img, blobs):
 
     .. math:: G(x, y; a, b, c) = \\exp(a x^2 + b x y + c y^2)
 
-    to each blob within a window of the size of the blob size. This code leverages the elliptical Gaussian fitting functions from storm_analysis by Hazen Babcock[1].
+    to each blob within a window of the size of the blob size. This
+    code leverages the elliptical Gaussian fitting functions from
+    storm_analysis by Hazen Babcock[1].
 
     Parameters
     ----------
@@ -93,8 +96,9 @@ def fit_gaussian(img, blobs):
     return gaussians
 
 
-def label_image(img, min_area=90, min_circ=0.25):
-    """Applies a Canny feature detection to detect edges on an image `img` and filters the edges based on area and circularity.
+def label_image(img, min_area=10, min_circ=0.25):
+    """Applies a Canny feature detection to detect edges on an image
+    `img` and filters the edges based on area and circularity.
 
     Parameters
     ----------
@@ -173,54 +177,56 @@ def main():
         '--screen',
         type=str,
         default='',
-        help=
-        """Path of image of calibration image on as it appears on screen.""")
+        help="""
+             Path of image of calibration image on as it appears on
+             screen.
+             """)
 
     parser.add_argument(
         '--sample',
         type=str,
         default='',
-        help="""Path of image of calibration image on sample.""")
+        help="""
+             Path of image of calibration image on sample.
+             """)
 
     parser.add_argument(
         '--output',
         type=str,
         default='',
-        help=
-        """Path of file to output the column-separated transformation matrix."""
-    )
-
-    parser.add_argument(
-        '--ttype',
-        type=str,
-        default='polynomial',
-        help=
-        """The type of transformation to use. Allowed values are polynomial and projective. By default a polynomial of order 3 is used. Polynomial should be more accurate, but if the transformation appears unstable, then use projective."""
-    )
+        help="""
+             Path of file to output the column-separated
+             transformation matrix.
+             """)
 
     parser.add_argument(
         '--fit',
         type=int,
         default=1,
-        help=
-        """Perform Gaussian fitting after blob detection. Default is 1 (perform fitting). Supply 0 to skip fitting."""
-    )
-	
+        help="""
+             Perform Gaussian fitting after blob detection. Default is
+             1 (perform fitting). Supply 0 to skip fitting.
+             """)
+
     parser.add_argument(
         '--invertx',
         type=bool,
         default=False,
-        help="""Inidicate whether the camera image is y-inverted. This will be
-taken into account in the transfomation by forcing a reversal of the
-sorted keypoints.""")
+        help="""
+             Inidicate whether the camera image is y-inverted. This
+             will be taken into account in the transfomation by
+             forcing a reversal of the sorted keypoints.
+             """)
 
     parser.add_argument(
         '--inverty',
         type=bool,
         default=True,
-        help="""Inidicate whether the camera image is y-inverted. This will be
-taken into account in the transfomation by forcing a reversal of the
-sorted keypoints.""")
+        help="""
+             Inidicate whether the camera image is y-inverted. This
+             will be taken into account in the transfomation by
+             forcing a reversal of the sorted keypoints.
+             """)
 
     args, _ = parser.parse_known_args()
     print(sys.argv)
