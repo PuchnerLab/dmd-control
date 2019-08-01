@@ -276,15 +276,15 @@ sorted keypoints.""")
     ax[0, 0].plot(
         sample_coords_sorted[:, 0],
         sample_coords_sorted[:, 1],
-        '-o',
         color='tab:red',
+        marker='o',
         markersize=3,
         linewidth=1)
     ax[0, 0].plot(
         tform(screen_coords_sorted)[:, 0],
         tform(screen_coords_sorted)[:, 1],
-        '-o',
         color='tab:blue',
+        marker='o',
         markersize=3,
         linewidth=1)
     # ax[0, 0].set_xlabel('x (px)')
@@ -302,8 +302,8 @@ sorted keypoints.""")
     ax[0, 1].plot(
         screen_coords_sorted[:, 0],
         screen_coords_sorted[:, 1],
-        '-o',
         color='tab:red',
+        marker='o',
         markersize=3,
         linewidth=1)
     ax[0, 1].set_xlabel('x (px)')
@@ -313,8 +313,8 @@ sorted keypoints.""")
     ax[1, 0].plot(
         tform(screen_coords_sorted)[:, 0],
         tform(screen_coords_sorted)[:, 1],
-        '-o',
         color='tab:red',
+        marker='o',
         markersize=3,
         linewidth=1)
     ax[1, 0].set_xlabel('x (px)')
@@ -331,13 +331,13 @@ sorted keypoints.""")
     #             (2 * iqr(distance) / distance.shape[0]**(1 / 3)))
     ax[1, 1].hist(
         # FIXME: Should not have the image-pixel scaling hard coded
-        160 * distance / (sample.shape[0] / 256),
+        160 * distance / (sample.shape[1] / 256),
         histtype='bar',
         ec='white',
+        # color='tab:purple',
         bins=int(np.sqrt(distance.shape[0])),
-        color='tab:purple',
-        label='{:0.4f} +/- {:0.4f} nm'.format(160 * distance.mean() / 2,
-                                              160 * distance.std() / 2))
+        label='{:.4f} +/- {:.4f} nm'.format(160 * distance.mean() / 2,
+                                            160 * distance.std() / 2))
     ax[1, 1].set_xlabel('discrepancy (nm)')
     # ax[1, 1].set_xlabel('point')
     # ax[1, 1].set_ylabel('discrepancy (nm)')
