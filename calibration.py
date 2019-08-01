@@ -228,6 +228,16 @@ def main():
              forcing a reversal of the sorted keypoints.
              """)
 
+    parser.add_argument(
+        '--params',
+        type=str,
+        default=None,
+        help="""
+             Path of parameters file. Options set in this file
+             override all other options. See example parameters file
+             for more information.
+             """)
+
     args, _ = parser.parse_known_args()
     print(sys.argv)
     if not args.screen:
