@@ -15,14 +15,14 @@ from __future__ import division, print_function
 import sys
 from argparse import ArgumentParser
 
+import cv2
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
-from matplotlib_scalebar.scalebar import ScaleBar
 import numpy as np
-from skimage import feature, io, measure, morphology, transform
 import scipy.spatial as spatial
-import cv2
-from scipy.stats import iqr
+import yaml
+from matplotlib_scalebar.scalebar import ScaleBar
+from skimage import feature, io, measure, morphology, transform
 
 
 def detect_points(img, scale=1):
@@ -256,22 +256,18 @@ def main():
     screen_coords = detect_points(screen)
     sample_coords = detect_points(sample)
 
-    screen_coords_sorted = sort_points(screen_coords, args.invertx, args.inverty)
+    screen_coords_sorted = sort_points(screen_coords, args.invertx,
+                                       args.inverty)
     sample_coords_sorted = sort_points(sample_coords)
 
     if args.fit:
         sample_coords_sorted = fit_gaussian(sample, sample_coords_sorted)
 
-    tparams = {'ttype': args.ttype, 'order': 3}
+    tparams = {'ttype': 'polynomial', 'order': 3}
     tform = transform.estimate_transform(
         src=screen_coords_sorted, dst=sample_coords_sorted, **tparams)
     tform_inv = transform.estimate_transform(
         src=sample_coords_sorted, dst=screen_coords_sorted, **tparams)
-    sample_tform = transform.warp(
-        image=sample.copy(),
-        inverse_map=tform,
-        output_shape=screen.shape,
-        order=0)
 
     # Apply inverse transformation to screen. After this passes
     # through, the optical path, it will be trasformed, resulting in
