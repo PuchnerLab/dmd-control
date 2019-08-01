@@ -286,7 +286,7 @@ def main():
     else:
         print(tform.params)
 
-    fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(16, 10))
+    fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(8, 5))
 
     ax[0, 0].imshow(sample, cmap=plt.cm.gray)
     ax[0, 0].plot(
