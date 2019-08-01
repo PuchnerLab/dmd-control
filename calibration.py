@@ -303,8 +303,6 @@ def main():
         marker='o',
         markersize=3,
         linewidth=1)
-    # ax[0, 0].set_xlabel('x (px)')
-    # ax[0, 0].set_ylabel('y (px)')
     ax[0, 0].set_xticks([])
     ax[0, 0].set_yticks([])
     scalebar = ScaleBar(
@@ -341,22 +339,15 @@ def main():
 
     distance = vec_length(sample_coords_sorted[:, :2] -
                           tform(screen_coords_sorted[:, :2]))
-    # ax[1, 1].plot(
-    #     distance, label='{:0.4f} +/- {:0.4f} nm'.format(160 * distance.mean() / 2, 160 * distance.std() / 2))
-    # nbins = int((distance.max() - distance.min()) /
-    #             (2 * iqr(distance) / distance.shape[0]**(1 / 3)))
-    ax[1, 1].hist(
-        # FIXME: Should not have the image-pixel scaling hard coded
+    ax[1, 1].violinplot(
         160 * distance / (sample.shape[1] / 256),
-        histtype='bar',
-        ec='white',
-        # color='tab:purple',
-        bins=int(np.sqrt(distance.shape[0])),
-        label='{:.4f} +/- {:.4f} nm'.format(160 * distance.mean() / 2,
-                                            160 * distance.std() / 2))
-    ax[1, 1].set_xlabel('discrepancy (nm)')
-    # ax[1, 1].set_xlabel('point')
-    # ax[1, 1].set_ylabel('discrepancy (nm)')
+        widths=0.25,
+        showmeans=True,
+        showmedians=True)
+    ax[1, 1].grid(axis='y')
+    ax[1, 1].set_xlim((0, 2))
+    ax[1, 1].set_xticks([])
+    ax[1, 1].set_ylabel('discrepancy (nm)')
     ax[1, 1].legend()
     fig.tight_layout()
     plt.show()
