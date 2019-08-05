@@ -7,10 +7,12 @@ column-separated file.
 """
 
 from __future__ import division, print_function
-import numpy as np
-from skimage import transform
+
+import argparse
+import sys
+
 import cv2
-import filepicker
+import numpy as np
 
 from filepicker import filepicker
 
