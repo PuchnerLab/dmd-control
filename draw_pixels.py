@@ -292,9 +292,8 @@ def _warp_test():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process stuff.')
-    parser.add_argument(
-        '--file', metavar='inverseTransformFile', type=str, default='')
-
+    parser.add_argument('--file', type=str, default='')
+    parser.add_argument('--invert', type=bool, default=False)
     args, _ = parser.parse_known_args()
     canvas = Canvas()
 
