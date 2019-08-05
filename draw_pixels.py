@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Provides functionality for drawing on a canvas and copying the
 contents to another canvas. Intended for controlling the display of a
