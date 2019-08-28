@@ -35,8 +35,14 @@ class Canvas:
         self.shape = 'circle'
         self.size = 5
 
+        # Number of spots
+        self.nx = 4
+        self.ny = self.nx
+
         self.calibration_mode = False
         self.calibration_step = 10
+
+        self.calibration_center = [self.dma_dim[0] // 2, self.dma_dim[1] // 2]
 
         self.order = 3
         self.inv_transform = np.array(
@@ -53,6 +59,43 @@ class Canvas:
         self.map2 = np.zeros(self.dma.shape, dtype='float32')
 
         self.mode = '(BLACK)'
+
+    def calibration_pattern(self,
+                            screen_fraction=0.3,
+                            dim=None,
+                            img=None):
+        self.calibration_mode = True
+        self.mode = '(CALIBRATION)'
+
+        if dim is None:
+            dim = self.dma_dim
+        width, height = dim
+
+        if img is None:
+            img = self.dma
+            pattern_center = self.calibration_center
+        else:
+            pattern_center = (width // 2, height // 2)
+
+        spacing = int(screen_fraction * min(dim) / (min(self.nx, self.ny) - 1))
+        pattern = np.zeros(dim[::-1], dtype=img.dtype)
+        for i in range(self.nx):
+            for j in range(self.ny):
+                x = int(i * spacing + (-spacing * (self.nx - 1)) / 2 +
+                        pattern_center[0])
+                y = int(j * spacing + (-spacing * (self.ny - 1)) / 2 +
+                        pattern_center[1])
+                if self.size != 0:
+                    cv2.circle(
+                        img=pattern,
+                        center=(x, y),
+                        radius=self.size,
+                        color=(self.white, ) * 3,
+                        thickness=-1,
+                        lineType=cv2.LINE_AA)
+                else:
+                    pattern[x, y] = self.white
+        return pattern ^ self.white
 
     def draw(self, event, x, y, flags, param):
         """
@@ -100,18 +143,21 @@ class Canvas:
         if event == cv2.EVENT_RBUTTONUP:
             self.erasing = False
 
-    def load_transform(self, filename):
-        """
-        Mostly a wrapper around ``numpy.loadtxt`` for ``cv2`` float32
-        matrix. Returns an ``skimage.transform`` and uses a (crude)
-        heuristic to try to guess what kind of transformation has been
-        read. It has to deal with the impedance mismatch between
-        ``cv2`` and ``skimage`` datatypes, float32 and float64,
-        respectively.
-        """
-        self.inv_transform = np.loadtxt(
-            filename, delimiter=',', dtype='float32')
-        self.generate_maps()
+    def generate_maps(self):
+        # src, dst, tform = _warp_test()
+        x, y = np.meshgrid(
+            np.arange(self.dma_dim[0]), np.arange(self.dma_dim[1]))
+        powers = (x**(i - j) * y**j
+                  for i in range(self.order + 1)
+                  for j in range(i + 1))
+        mapx = np.zeros(self.dma_dim[::-1], dtype='float32')
+        mapy = np.zeros(self.dma_dim[::-1], dtype='float32')
+        for i, p in enumerate(powers):
+            mapx += self.inv_transform[0, i] * p
+            mapy += self.inv_transform[1, i] * p
+        self.map1, self.map2 = cv2.convertMaps(
+            map1=mapx, map2=mapy, dstmap1type=cv2.CV_16SC2,
+            nninterpolation=False)
 
     def handle_key(self, key):
         """
@@ -150,8 +196,17 @@ class Canvas:
             self.size += 1
         elif key == ord('-'):
             self.size -= 1
-            if self.size <= 0:
+            if self.size < 1:
                 self.size = 0
+        elif key == ord('.'):
+            self.nx += 1
+            self.ny += 1
+        elif key == ord(','):
+            self.nx -= 1
+            self.ny -= 1
+            if self.nx < 3:
+                self.nx = 3
+                self.ny = 3
         elif key == ord('@'):
             self.dma[:] = self.black  # WHITE
             self.mode = '(WHITE)'
@@ -172,22 +227,28 @@ class Canvas:
             self.camera ^= self.white
         if self.calibration_mode:
             if key == ord('W'):
+                self.calibration_center[1] -= self.calibration_step
                 M = np.float32([[1, 0, 0], [0, 1, -self.calibration_step]])
                 self.dma = cv2.warpAffine(
                     self.dma, M, self.dma_dim, borderMode=cv2.BORDER_WRAP)
             elif key == ord('A'):
+                self.calibration_center[0] -= self.calibration_step
                 M = np.float32([[1, 0, -self.calibration_step], [0, 1, 0]])
                 self.dma = cv2.warpAffine(
                     self.dma, M, self.dma_dim, borderMode=cv2.BORDER_WRAP)
             elif key == ord('S'):
+                self.calibration_center[1] += self.calibration_step
                 M = np.float32([[1, 0, 0], [0, 1, self.calibration_step]])
                 self.dma = cv2.warpAffine(
                     self.dma, M, self.dma_dim, borderMode=cv2.BORDER_WRAP)
             elif key == ord('D'):
+                self.calibration_center[0] += self.calibration_step
                 M = np.float32([[1, 0, self.calibration_step], [0, 1, 0]])
                 self.dma = cv2.warpAffine(
                     self.dma, M, self.dma_dim, borderMode=cv2.BORDER_WRAP)
             elif key == ord('=') or key == ord('-'):
+                self.dma = self.calibration_pattern()
+            elif key == ord('.') or key == ord(','):
                 self.dma = self.calibration_pattern()
             # Clear the screen with the BACKSPACE key
             elif key == 8:
@@ -195,51 +256,18 @@ class Canvas:
                 self.mode = ''
         return 0
 
-    def generate_maps(self):
-        # src, dst, tform = _warp_test()
-        x, y = np.meshgrid(
-            np.arange(self.dma_dim[0]), np.arange(self.dma_dim[1]))
-        powers = (x**(i - j) * y**j
-                  for i in range(self.order + 1)
-                  for j in range(i + 1))
-        mapx = np.zeros(self.dma_dim[::-1], dtype='float32')
-        mapy = np.zeros(self.dma_dim[::-1], dtype='float32')
-        for i, p in enumerate(powers):
-            mapx += self.inv_transform[0, i] * p
-            mapy += self.inv_transform[1, i] * p
-        self.map1, self.map2 = cv2.convertMaps(
-            map1=mapx, map2=mapy, dstmap1type=cv2.CV_16SC2,
-            nninterpolation=False)
-
-    def calibration_pattern(self,
-                            nx=4,
-                            ny=4,
-                            screen_fraction=0.3,
-                            dim=None,
-                            img=None):
-        self.calibration_mode = True
-        self.mode = '(CALIBRATION)'
-        if dim is None:
-            dim = self.dma_dim
-        if img is None:
-            img = self.dma
-        width, height = dim
-        spacing = int(screen_fraction * min(dim) / (min(nx, ny) - 1))
-        pattern = np.zeros(dim[::-1], dtype=img.dtype)
-        for i in range(nx):
-            for j in range(ny):
-                if self.size != 0:
-                    cv2.circle(
-                        pattern,
-                        (i * spacing + (width - spacing * (nx - 1)) // 2,
-                         j * spacing + (height - spacing * (ny - 1)) // 2),
-                        self.size, (self.white, self.white, self.white),
-                        -1,
-                        lineType=cv2.LINE_AA)
-                else:
-                    pattern[j * spacing + self.size, i * spacing +
-                            self.size] = self.white
-        return pattern ^ self.white
+    def load_transform(self, filename):
+        """
+        Mostly a wrapper around ``numpy.loadtxt`` for ``cv2`` float32
+        matrix. Returns an ``skimage.transform`` and uses a (crude)
+        heuristic to try to guess what kind of transformation has been
+        read. It has to deal with the impedance mismatch between
+        ``cv2`` and ``skimage`` datatypes, float32 and float64,
+        respectively.
+        """
+        self.inv_transform = np.loadtxt(
+            filename, delimiter=',', dtype='float32')
+        self.generate_maps()
 
 
 def printdoc():
