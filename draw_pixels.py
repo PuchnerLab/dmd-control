@@ -41,6 +41,8 @@ class Canvas:
 
         self.calibration_mode = False
         self.calibration_step = 10
+        self.screen_fraction = 0.3
+        self.screen_fraction_delta = 0.05
 
         self.calibration_center = [self.dma_dim[0] // 2, self.dma_dim[1] // 2]
 
@@ -61,7 +63,6 @@ class Canvas:
         self.mode = '(BLACK)'
 
     def calibration_pattern(self,
-                            screen_fraction=0.3,
                             dim=None,
                             img=None):
         self.calibration_mode = True
@@ -77,7 +78,7 @@ class Canvas:
         else:
             pattern_center = (width // 2, height // 2)
 
-        spacing = int(screen_fraction * min(dim) / (min(self.nx, self.ny) - 1))
+        spacing = int(self.screen_fraction * min(dim) / (min(self.nx, self.ny) - 1))
         pattern = np.zeros(dim[::-1], dtype=img.dtype)
         for i in range(self.nx):
             for j in range(self.ny):
@@ -223,7 +224,7 @@ class Canvas:
             self.dma = self.calibration_pattern()
         elif key == ord('T'):
             self.camera = self.calibration_pattern(
-                dim=self.monitor_dim, img=self.camera, screen_fraction=0.7)
+                dim=self.monitor_dim, img=self.camera)
             self.camera ^= self.white
         if self.calibration_mode:
             if key == ord('W'):
@@ -249,6 +250,16 @@ class Canvas:
             elif key == ord('=') or key == ord('-'):
                 self.dma = self.calibration_pattern()
             elif key == ord('.') or key == ord(','):
+                self.dma = self.calibration_pattern()
+            elif key == ord('['):
+                self.screen_fraction -= self.screen_fraction_delta
+                if self.screen_fraction < self.screen_fraction_delta:
+                    self.screen_fraction = self.screen_fraction_delta
+                self.dma = self.calibration_pattern()
+            elif key == ord(']'):
+                self.screen_fraction += self.screen_fraction_delta
+                if self.screen_fraction > 1.0:
+                    self.screen_fraction = 1.0
                 self.dma = self.calibration_pattern()
             # Clear the screen with the BACKSPACE key
             elif key == 8:
@@ -284,7 +295,9 @@ def printdoc():
         '!/@': 'Set DMA to black/white',
         'o': 'Open new transformation file',
         'h': 'Show this help dialog',
-        'left-click/right-click': 'Draw/erase with brush.'
+        'left-click/right-click': 'Draw/erase with brush.',
+        '[/]': 'Increase/decrease screen fraction of calibration pattern.',
+        ',/.': 'Increase/decrease number of points in calibration pattern.'
     }
     from operator import itemgetter
     title = 'Keyboard shortcuts'
