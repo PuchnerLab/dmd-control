@@ -95,7 +95,7 @@ class Canvas:
                         thickness=-1,
                         lineType=cv2.LINE_AA)
                 else:
-                    pattern[x, y] = self.white
+                    pattern[y, x] = self.white
         return pattern ^ self.white
 
     def draw(self, event, x, y, flags, param):
