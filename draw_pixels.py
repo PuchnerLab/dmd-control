@@ -14,6 +14,9 @@ import sys
 
 import cv2
 import numpy as np
+import skimage.filters as filters
+import skimage.io as io
+import skimage.transform as transform
 
 from filepicker import filepicker
 
@@ -218,6 +221,10 @@ class Canvas:
             filename = filepicker()
             if filename != '':
                 self.load_transform(filename)
+        elif key == ord('O'):
+            filename = filepicker()
+            if filename != '':
+                self.load_image(filename)
         elif key == ord('h'):
             printdoc()
         elif key == ord('C'):
@@ -266,6 +273,16 @@ class Canvas:
                 self.calibration_mode = False
                 self.mode = ''
         return 0
+
+    def load_image(self, filename):
+        new_image = io.imread(filename, as_gray=True)
+        new_image = (
+            np.iinfo(self.camera.dtype).max * (new_image / new_image.max()))
+        new_image = transform.resize(new_image, self.camera.shape).astype(
+            self.camera.dtype)
+        new_image = new_image > filters.threshold_minimum(new_image)
+        self.camera[:] = np.iinfo(self.camera.dtype).max * new_image.astype(
+            self.camera.dtype).copy()
 
     def load_transform(self, filename):
         """
