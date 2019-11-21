@@ -59,7 +59,7 @@ def detect_points(img, scale=1):
 def fit_gaussian(img, blobs):
     """After blob detection, fit an elliptical Gaussian of the form
 
-    .. math:: G(x, y; a, b, c) = \\exp(a x^2 + b x y + c y^2)
+    .. math:: G(x, y; a, b, c) = \\exp(-(a x^2 + b x y + c y^2))
 
     to each blob within a window of the size of the blob size. This
     code leverages the elliptical Gaussian fitting functions from
