@@ -22,7 +22,7 @@ from filepicker import filepicker
 
 
 class Canvas:
-    def __init__(self):
+    def __init__(self, **kwargs):
         # Constants
         self.white = 255
         self.black = 0
@@ -55,15 +55,18 @@ class Canvas:
              [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]],
             dtype='float32')
 
-        self.camera_img = np.zeros(self.monitor_dim, 'uint8')
+        self.camera_img = self.black * np.ones(self.monitor_dim, 'uint8')
         self.camera = self.camera_img.copy()
 
-        self.dma = 255 * np.ones(self.dma_dim[::-1], 'uint8')
+        self.dma = self.black * np.ones(self.dma_dim[::-1], 'uint8')
 
         self.map1 = np.zeros(self.dma.shape, dtype='float32')
         self.map2 = np.zeros(self.dma.shape, dtype='float32')
 
         self.mode = '(BLACK)'
+
+        # keyword arguments (options)
+        self.invert = 255 * kwargs['invert']
 
     def calibration_pattern(self,
                             dim=None,
@@ -99,7 +102,7 @@ class Canvas:
                         lineType=cv2.LINE_AA)
                 else:
                     pattern[y, x] = self.white
-        return pattern ^ self.white
+        return pattern
 
     def draw(self, event, x, y, flags, param):
         """
@@ -173,18 +176,19 @@ class Canvas:
         # Clear the screen with the BACKSPACE key
         elif key == 8:
             self.camera[:] = self.black
-            self.dma[:] = self.white
+            self.dma[:] = self.black ^ self.invert
         # Send image from CAMERA to DMA with the ENTER key. The keycode
         # for return will depend on the platform, so \n and \r are both
         # handled.
         elif key == ord('\n') or key == ord('\r'):
             self.calibration_mode = False
             self.dma = cv2.remap(
-                src=self.camera ^ self.white,
+                src=self.camera ^ self.invert,
                 map1=self.map1,
                 map2=self.map2,
                 interpolation=cv2.INTER_AREA,
-                borderValue=self.white)
+                borderValue=self.black ^ self.invert,
+            )
             self.mode = '(SENT)'
         elif key == ord('f'):
             cv2.setWindowProperty('DMA', cv2.WND_PROP_FULLSCREEN, 1)
@@ -212,10 +216,10 @@ class Canvas:
                 self.nx = 3
                 self.ny = 3
         elif key == ord('@'):
-            self.dma[:] = self.black  # WHITE
+            self.dma[:] = self.white
             self.mode = '(WHITE)'
         elif key == ord('!'):
-            self.dma[:] = self.white  # BLACK
+            self.dma[:] = self.black
             self.mode = '(BLACK)'
         elif key == ord('o'):
             filename = filepicker()
@@ -356,7 +360,8 @@ if __name__ == '__main__':
     parser.add_argument('--file', type=str, default='')
     parser.add_argument('--invert', type=bool, default=False)
     args, _ = parser.parse_known_args()
-    canvas = Canvas()
+    args_dict = {k: getattr(args, k) for k in dir(args) if not k.startswith('_')}
+    canvas = Canvas(**args_dict)
 
     if args.file:
         canvas.load_transform(args.file)
